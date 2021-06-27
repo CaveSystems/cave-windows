@@ -1,65 +1,3 @@
-#region CopyRight 2018
-/*
-    Copyright (c) 2003-2018 Andreas Rohleder (andreas@rohleder.cc)
-    All rights reserved
-*/
-#endregion
-#region License MSPL
-/*
-    This file contains some sourcecode that uses Microsoft Windows API calls
-    to provide functionality that is part of the underlying operating system.
-    The API calls and their documentation are copyrighted work of Microsoft
-    and/or its suppliers. Use of the Software is governed by the terms of the
-    MICROSOFT LIMITED PUBLIC LICENSE.
-
-    You may not use this program/library/sourcecode except in compliance
-    with the License. The License is included in the LICENSE.MSPL file
-    found at the installation directory or the distribution package.
-*/
-#endregion
-#region License LGPL-3
-/*
-    This program/library/sourcecode is free software; you can redistribute it
-    and/or modify it under the terms of the GNU Lesser General Public License
-    version 3 as published by the Free Software Foundation subsequent called
-    the License.
-
-    You may not use this program/library/sourcecode except in compliance
-    with the License. The License is included in the LICENSE file
-    found at the installation directory or the distribution package.
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    "Software"), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be included
-    in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
-#endregion License
-#region Authors & Contributors
-/*
-   Information source:
-     Microsoft Corporation
-
-   Implementation:
-     Andreas Rohleder <andreas@rohleder.cc>
-
-   Contributors:
- */
-#endregion
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -106,27 +44,27 @@ namespace Cave.Windows
             public double LastFifteenMinutes;
         }
 
-        Timer m_Timer;
-        SYSTEMTIMES m_LastTimes = new SYSTEMTIMES();
-        LinkedList<double> m_Loads = new LinkedList<double>();
+        Timer timer;
+        SYSTEMTIMES lastTimes = new();
+        readonly LinkedList<double> List = new();
 
-        void m_Update(object state)
+        void Update(object state)
         {
             lock (this)
             {
                 //get kernel times
-                SYSTEMTIMES times = KERNEL32.GetSystemTimes();
+                var times = KERNEL32.GetSystemTimes();
                 //calculate the timeslice we work on
-                double l_SliceTime = ((times.Kernel + times.User) - (m_LastTimes.Kernel + m_LastTimes.User)).TotalMilliseconds;
-                if (l_SliceTime < 1.0) return;
+                var sliceTime = ((times.Kernel + times.User) - (lastTimes.Kernel + lastTimes.User)).TotalMilliseconds;
+                if (sliceTime < 1.0) return;
                 //calculate the load during this timeslice
-                double l_SliceLoad = 1 - (times.Idle - m_LastTimes.Idle).TotalMilliseconds / l_SliceTime;
+                var sliceLoad = 1 - ((times.Idle - lastTimes.Idle).TotalMilliseconds / sliceTime);
                 //push the slice load to the array
-                m_Loads.AddLast(l_SliceLoad);
+                List.AddLast(sliceLoad);
                 //pop all items older then 900 seconds
-                while (m_Loads.Count > 900) m_Loads.RemoveFirst();
+                while (List.Count > 900) List.RemoveFirst();
                 //save last times
-                m_LastTimes = times;
+                lastTimes = times;
             }
         }
 
@@ -139,8 +77,8 @@ namespace Cave.Windows
             {
                 lock (this)
                 {
-                    double[] result = new double[900];
-                    m_Loads.CopyTo(result, 0);
+                    var result = new double[900];
+                    List.CopyTo(result, 0);
                     return result;
                 }
             }
@@ -151,29 +89,29 @@ namespace Cave.Windows
         /// </summary>
         public VALUES Get()
         {
-            double[] l_Loads = Loads;
-            double l_Load = 0;
-            int index = 900;
-            int i = 0;
+            var loads = Loads;
+            double load = 0;
+            var index = 900;
+            int i;
             //calc last minute:
             for (i = 0; i < 60; i++)
             {
-                l_Load += l_Loads[--index];
+                load += loads[--index];
             }
-            double l_LastMinute = l_Load / 60;
+            var lastMinute = load / 60;
             //calc last 5 minutes:
             for (; i < 300; i++)
             {
-                l_Load += l_Loads[--index];
+                load += loads[--index];
             }
-            double l_LastFiveMinutes = l_Load / 300;
+            var lastFiveMinutes = load / 300;
             //calc last 15 minutes:
             for (; i < 900; i++)
             {
-                l_Load += l_Loads[--index];
+                load += loads[--index];
             }
-            double l_LastFifteenMinutes = l_Load / i;
-            return new VALUES(l_LastMinute, l_LastFiveMinutes, l_LastFifteenMinutes);
+            var lastFifteenMinutes = load / i;
+            return new VALUES(lastMinute, lastFiveMinutes, lastFifteenMinutes);
         }
 
         /// <summary>
@@ -181,12 +119,12 @@ namespace Cave.Windows
         /// </summary>
         public LOAD()
         {
-            for (int i = 0; i < 900; i++)
+            for (var i = 0; i < 900; i++)
             {
-                m_Loads.AddLast(0.0);
+                List.AddLast(0.0);
             }
-            m_LastTimes = KERNEL32.GetSystemTimes();
-            m_Timer = new Timer(new TimerCallback(m_Update), null, 1000, 1000);
+            lastTimes = KERNEL32.GetSystemTimes();
+            timer = new Timer(new TimerCallback(Update), null, 1000, 1000);
         }
 
         /// <summary>
@@ -194,11 +132,12 @@ namespace Cave.Windows
         /// </summary>
         public void Dispose()
         {
-            if (m_Timer != null)
+            if (timer != null)
             {
-                m_Timer.Dispose();
-                m_Timer = null;
+                timer.Dispose();
+                timer = null;
             }
+            GC.SuppressFinalize(this);
         }
     }
 }

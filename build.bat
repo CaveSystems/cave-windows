@@ -11,13 +11,10 @@ if "%VisualStudioVersion%"=="" call "%ProgramFiles(x86)%\Microsoft Visual Studio
 if "%VisualStudioVersion%"=="" call "%ProgramFiles(x86)%\Microsoft Visual Studio\2017\Community\Common7\Tools\VsDevCmd.bat" 2> nul
 if "%VisualStudioVersion%"=="" call "%ProgramFiles(x86)%\Microsoft Visual Studio\2017\WDExpress\Common7\Tools\VsDevCmd.bat" 2> nul
 
-rd bin /s /q
+msbuild /t:Clean
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 dotnet restore
-if %errorlevel% neq 0 exit /b %errorlevel%
-
-dotnet clean
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 msbuild /p:Configuration=Release /p:Platform="Any CPU"
@@ -28,4 +25,3 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 
 rem msbuild /p:Configuration=Release /p:Platform="Any CPU" documentation.shfbproj
 rem if %errorlevel% neq 0 exit /b %errorlevel%
-

@@ -1,66 +1,5 @@
-#region CopyRight 2018
-/*
-    Copyright (c) 2003-2018 Andreas Rohleder (andreas@rohleder.cc)
-    All rights reserved
-*/
-#endregion
-#region License MSPL
-/*
-    This file contains some sourcecode that uses Microsoft Windows API calls
-    to provide functionality that is part of the underlying operating system.
-    The API calls and their documentation are copyrighted work of Microsoft
-    and/or its suppliers. Use of the Software is governed by the terms of the
-    MICROSOFT LIMITED PUBLIC LICENSE.
-
-    You may not use this program/library/sourcecode except in compliance
-    with the License. The License is included in the LICENSE.MSPL file
-    found at the installation directory or the distribution package.
-*/
-#endregion
-#region License LGPL-3
-/*
-    This program/library/sourcecode is free software; you can redistribute it
-    and/or modify it under the terms of the GNU Lesser General Public License
-    version 3 as published by the Free Software Foundation subsequent called
-    the License.
-
-    You may not use this program/library/sourcecode except in compliance
-    with the License. The License is included in the LICENSE file
-    found at the installation directory or the distribution package.
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    "Software"), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be included
-    in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
-#endregion License
-#region Authors & Contributors
-/*
-   Information source:
-     Microsoft Corporation
-
-   Implementation:
-     Andreas Rohleder <andreas@rohleder.cc>
-
-   Contributors:
- */
-#endregion
-
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace Cave.Windows
@@ -69,6 +8,7 @@ namespace Cave.Windows
     /// Remote Desktop Services API Functions
     /// https://msdn.microsoft.com/en-us/library/aa383464%28v=vs.85%29.aspx
     /// </summary>
+    [SuppressMessage("Interoperability", "CA1401")]
     public class WTSAPI32
     {
         /// <summary>
@@ -121,12 +61,12 @@ namespace Cave.Windows
             /// A null-terminated string containing the name of a virtual channel. Virtual channel names can contain from 1 to CHANNEname_LEN (7) characters.
             /// </summary>
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 8)]
-            public string name;
+            public string Name;
 
             /// <summary>
             /// Specifies the options for this virtual channel.
             /// </summary>
-            public CHANNEL_OPTION options;
+            public CHANNEL_OPTION Options;
         }
 
         /// <summary>
@@ -452,33 +392,33 @@ namespace Cave.Windows
         /// This function is obsolete. Instead, use the WTSVirtualChannelOpenEx function.
         /// </summary>
         /// <param name="hServer ">This parameter must be WTS_CURRENT_SERVER_HANDLE.</param>
-        /// <param name="SessionId">A Remote Desktop Services session identifier. To indicate the current session, specify WTS_CURRENT_SESSION. You can use the WTSEnumerateSessions function to retrieve the identifiers of all sessions on a specified RD Session Host server.</param>
+        /// <param name="sessionId">A Remote Desktop Services session identifier. To indicate the current session, specify WTS_CURRENT_SESSION. You can use the WTSEnumerateSessions function to retrieve the identifiers of all sessions on a specified RD Session Host server.</param>
         /// <param name="pVirtualName">A pointer to a null-terminated string containing the virtual channel name. Note that this is an ANSI string even when UNICODE is defined. The virtual channel name consists of one to CHANNEname_LEN characters, not including the terminating null.</param>
         /// <returns>If the function succeeds, the return value is a handle to the specified virtual channel.</returns>
         [DllImport("Wtsapi32.dll")]
-        public static extern IntPtr WTSVirtualChannelOpen(IntPtr hServer, int SessionId, [MarshalAs(UnmanagedType.LPStr)] string pVirtualName);
+        public static extern IntPtr WTSVirtualChannelOpen(IntPtr hServer, int sessionId, [MarshalAs(UnmanagedType.LPWStr)] string pVirtualName);
 
         /// <summary>
         /// Writes data to the server end of a virtual channel.
         /// </summary>
         /// <param name="hChannelHandle"></param>
-        /// <param name="Buffer"></param>
-        /// <param name="Length"></param>
+        /// <param name="buffer"></param>
+        /// <param name="length"></param>
         /// <param name="pBytesWritten"></param>
         /// <returns></returns>
         [DllImport("Wtsapi32.dll", SetLastError = true)]
-        public static extern bool WTSVirtualChannelWrite(IntPtr hChannelHandle, byte[] Buffer, int Length, out int pBytesWritten);
+        public static extern bool WTSVirtualChannelWrite(IntPtr hChannelHandle, byte[] buffer, int length, out int pBytesWritten);
 
         /// <summary>
         /// Writes data to the server end of a virtual channel.
         /// </summary>
         /// <param name="hChannelHandle">Handle to a virtual channel opened by the WTSVirtualChannelOpen function. </param>
-        /// <param name="Buffer">Pointer to a buffer containing the data to write to the virtual channel.</param>
-        /// <param name="Length">Specifies the size, in bytes, of the data to write.</param>
+        /// <param name="buffer">Pointer to a buffer containing the data to write to the virtual channel.</param>
+        /// <param name="length">Specifies the size, in bytes, of the data to write.</param>
         /// <param name="pBytesRead">Pointer to a variable that receives the number of bytes written.</param>
         /// <returns></returns>
         [DllImport("Wtsapi32.dll", SetLastError = true)]
-        public static extern bool WTSVirtualChannelRead(IntPtr hChannelHandle, byte[] Buffer, int Length, out int pBytesRead);
+        public static extern bool WTSVirtualChannelRead(IntPtr hChannelHandle, byte[] buffer, int length, out int pBytesRead);
 
         /// <summary>
         /// Closes an open virtual channel handle.
@@ -491,10 +431,10 @@ namespace Cave.Windows
         /// <summary>
         /// Obtains the primary access token of the logged-on user specified by the session ID. To call this function successfully, the calling application must be running within the context of the LocalSystem account and have the SE_TCB_NAME privilege.
         /// </summary>
-        /// <param name="SessionId">A Remote Desktop Services session identifier. Any program running in the context of a service will have a session identifier of zero (0). You can use the WTSEnumerateSessions function to retrieve the identifiers of all sessions on a specified RD Session Host server. </param>
+        /// <param name="sessionId">A Remote Desktop Services session identifier. Any program running in the context of a service will have a session identifier of zero (0). You can use the WTSEnumerateSessions function to retrieve the identifiers of all sessions on a specified RD Session Host server. </param>
         /// <param name="phToken">If the function succeeds, receives a pointer to the token handle for the logged-on user. Note that you must call the CloseHandle function to close this handle.</param>
         /// <returns>If the function succeeds, the return value is a nonzero value, and the phToken parameter points to the primary token of the user. If the function fails, the return value is zero. To get extended error information, call GetLastError</returns>
         [DllImport("Wtsapi32.dll", SetLastError = true)]
-        public static extern bool WTSQueryUserToken(int SessionId, out IntPtr phToken);
+        public static extern bool WTSQueryUserToken(int sessionId, out IntPtr phToken);
     }
 }

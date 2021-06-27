@@ -1,14 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net20;net35;net40;net45;net46;net47</TargetFrameworks>
-    <Authors>Andreas Rohleder</Authors>
-    <Company>CaveSystems GmbH, Andreas Rohleder</Company>
-    <Copyright>(c) 2003-$([System.DateTime]::UtcNow.Year) Andreas Rohleder</Copyright>
-    <PackageIconUrl>https://www.cavesystems.de/favicon.ico</PackageIconUrl>
-    <PackageLicenseExpression>LGPL-3.0-only</PackageLicenseExpression>
-    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
-    <FileVersion>$([System.DateTime]::UtcNow.Year).$([System.DateTime]::UtcNow.ToString("MMdd")).$([System.DateTime]::UtcNow.ToString("HHmm")).$([System.DateTime]::UtcNow.ToString("ssfff"))</FileVersion>
-    <LangVersion>latest</LangVersion>
     <!--project-->
     <RootNamespace>Cave</RootNamespace>
     <AssemblyOriginatorKeyFile>Cave.Windows.snk</AssemblyOriginatorKeyFile>
@@ -17,34 +9,16 @@
     <Description>CaveSystems Windows Interop Bibliothek. This packages contains interop structures and methods.</Description>
     <PackageProjectUrl>https://github.com/CaveSystems/cave-windows</PackageProjectUrl>
     <RepositoryUrl>https://github.com/CaveSystems/cave-windows</RepositoryUrl>
-    <!--settings-->
     <PackageReleaseNotes />
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <SignAssembly>true</SignAssembly>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <NeutralLanguage />
-    <DelaySign>false</DelaySign>
-    <DebugType>portable</DebugType>
-    <DebugSymbols>true</DebugSymbols>
-    <IncludeSymbols>true</IncludeSymbols>
-    <IncludeSymbolsInPackage>true</IncludeSymbolsInPackage>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <EmbedUntrackedSources>true</EmbedUntrackedSources>
-    <Deterministic>true</Deterministic>
-    <DeterministicSourcePaths>false</DeterministicSourcePaths>
   </PropertyGroup>
+  
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
   </PropertyGroup>
+  
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DefineConstants>TRACE;DEBUG;</DefineConstants>
   </PropertyGroup>
-  <PropertyGroup>
-    <DefineConstants Condition=" !$(DefineConstants.Contains(';NET')) ">$(DefineConstants);NET$(TargetFramework.ToUpper().Replace("_", "").Replace(".", "").Replace("NET", ""))</DefineConstants>
-    <DefineConstants Condition=" $(DefineConstants.Contains(';NET')) ">$(DefineConstants.Remove($(DefineConstants.LastIndexOf(";NET"))));NET$(TargetFramework.ToUpper().Replace("_", "").Replace(".", "").Replace("NET", ""))</DefineConstants>
-  </PropertyGroup>
+    
   <ItemGroup Condition="'$(TargetFramework)'=='net20' OR '$(TargetFramework)'=='net35'">
     <Reference Include="System" />
     <Reference Include="System.Data" />
@@ -52,6 +26,7 @@
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Management" />
   </ItemGroup>
+  
   <ItemGroup Condition="'$(TargetFramework)'=='net40' OR '$(TargetFramework)'=='net45' OR '$(TargetFramework)'=='net46' OR '$(TargetFramework)'=='net47'">
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -61,27 +36,26 @@
     <Reference Include="System.Management" />
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)'=='net20' OR '$(TargetFramework)'=='net35'">
-    <PackageReference Include="Cave.Backports" Version="1.0.6" />
-  </ItemGroup>
+  
   <ItemGroup Condition="'$(TargetFramework)'=='netstandard1.3'">
     <PackageReference Include="System.Diagnostics.Process" Version="4.3.0" />
     <PackageReference Include="System.Drawing.Primitives" Version="4.3.0" />
     <PackageReference Include="System.Diagnostics.TraceSource" Version="4.3.0" />
     <PackageReference Include="System.Management" Version="4.0.0" />
   </ItemGroup>
+  
   <ItemGroup Condition="'$(TargetFramework)'=='netstandard2.0'">
+    <PackageReference Include="System.Drawing.Common" Version="4.6.0" />
     <PackageReference Include="System.Management" Version="4.6.0" />
+    <PackageReference Include="Microsoft.Win32.Registry" Version="4.6.0" />
   </ItemGroup>
+  
   <ItemGroup>
-    <PackageReference Include="Cave.AssemblyVersionInfo" Version="1.0.2" />
-    <PackageReference Include="Cave.Collections" Version="1.0.2" />
-    <PackageReference Include="Cave.Extensions" Version="1.0.9" />
-    <PackageReference Include="Cave.IO" Version="1.0.6" />
-    <PackageReference Include="Cave.Media" Version="1.0.8-ci-20190824-2" />
-    <PackageReference Include="Cave.Net" Version="1.0.9" />
-    <PackageReference Include="Cave.Platform" Version="1.0.3" />
+    <PackageReference Include="Cave.Extensions" Version="2.0.12" />
+    <PackageReference Include="Cave.IO" Version="2.0.4" />
+    <PackageReference Include="Cave.Net" Version="2.0.0" />
   </ItemGroup>
+  
   <ItemGroup>
     <Compile Update="Properties\Resources.Designer.cs">
       <DesignTime>True</DesignTime>
@@ -89,6 +63,7 @@
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
   </ItemGroup>
+  
   <ItemGroup>
     <EmbeddedResource Update="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>

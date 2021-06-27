@@ -1,65 +1,4 @@
-#region CopyRight 2018
-/*
-    Copyright (c) 2003-2018 Andreas Rohleder (andreas@rohleder.cc)
-    All rights reserved
-*/
-#endregion
-#region License MSPL
-/*
-    This file contains some sourcecode that uses Microsoft Windows API calls
-    to provide functionality that is part of the underlying operating system.
-    The API calls and their documentation are copyrighted work of Microsoft
-    and/or its suppliers. Use of the Software is governed by the terms of the
-    MICROSOFT LIMITED PUBLIC LICENSE.
-
-    You may not use this program/library/sourcecode except in compliance
-    with the License. The License is included in the LICENSE.MSPL file
-    found at the installation directory or the distribution package.
-*/
-#endregion
-#region License LGPL-3
-/*
-    This program/library/sourcecode is free software; you can redistribute it
-    and/or modify it under the terms of the GNU Lesser General Public License
-    version 3 as published by the Free Software Foundation subsequent called
-    the License.
-
-    You may not use this program/library/sourcecode except in compliance
-    with the License. The License is included in the LICENSE file
-    found at the installation directory or the distribution package.
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    "Software"), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be included
-    in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
-#endregion License
-#region Authors & Contributors
-/*
-   Information source:
-     Microsoft Corporation
-
-   Implementation:
-     Andreas Rohleder <andreas@rohleder.cc>
-
-   Contributors:
- */
-#endregion
-
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
@@ -68,9 +7,9 @@ namespace Cave.Windows
 {
     /// <summary>
     /// This class provides Windows Networking Functions on windows 16, 32 and 64 bit
-    /// </summary>
-    
+    /// </summary>    
     [SuppressUnmanagedCodeSecurity]
+    [SuppressMessage("Interoperability", "CA1401")]
     public static class MPR
     {
         #region Windows function imports
@@ -81,7 +20,7 @@ namespace Cave.Windows
         /// <param name="remoteName">Pointer to a null-terminated string that receives the remote name used to make the connection.</param>
         /// <param name="count">Pointer to a variable that specifies the size of the buffer pointed to by the lpRemoteName parameter, in characters. If the function fails because the buffer is not large enough, this parameter returns the required buffer size.</param>
         /// <returns></returns>
-        [DllImport("mpr.dll")]
+        [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
         public static extern int WNetGetConnection(string localName, StringBuilder remoteName, ref int count);
 
         /// <summary>
@@ -92,7 +31,7 @@ namespace Cave.Windows
         /// <param name="userName"></param>
         /// <param name="flags"></param>
         /// <returns></returns>
-        [DllImport("mpr.dll")]
+        [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
         public static extern int WNetAddConnection2A(ref NETRESOURCE netResource, string password, string userName, int flags);
 
         /// <summary>
@@ -103,7 +42,7 @@ namespace Cave.Windows
         /// <param name="flags"></param>
         /// <param name="force"></param>
         /// <returns></returns>
-        [DllImport("mpr.dll")]
+        [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
         public static extern int WNetCancelConnection2A(string name, int flags, bool force);
 
         /// <summary>
@@ -135,7 +74,7 @@ namespace Cave.Windows
         /// <param name="localDrive">Pointer to a null-terminated Unicode string that specifies the local name of the drive to connect to, such as "Z:". If this parameter is NULL, the function reconnects all persistent drives stored in the registry for the current user.</param>
         /// <param name="useUI">If true, display a username/password prompt to the caller; otherwise, do not display it. The default value is true. </param>
         /// <returns></returns>
-        [DllImport("mpr.dll")]
+        [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
         public static extern int WNetRestoreConnectionW(int wnd, string localDrive, bool useUI);
         #endregion
 
@@ -147,10 +86,10 @@ namespace Cave.Windows
         /// <returns></returns>
         public static string NetworkDriveGet(char drive)
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             //get length first
-            int len = 0;
-            int result = WNetGetConnection(drive + ":", stringBuilder, ref len);
+            var len = 0;
+            var result = WNetGetConnection(drive + ":", stringBuilder, ref len);
             //not connected -> return
             if (result == 2250) return null;
             //error ?
@@ -171,7 +110,7 @@ namespace Cave.Windows
         /// <param name="force"></param>
         public static void NetworkDriveUnmap(char localDrive, bool force)
         {
-            int result = WNetCancelConnection2A(localDrive + ":", (int)CONNECT_FLAGS.CONNECT_UPDATE_PROFILE, force);
+            var result = WNetCancelConnection2A(localDrive + ":", (int)CONNECT_FLAGS.CONNECT_UPDATE_PROFILE, force);
             if (result != 0) throw new Win32ErrorException(result);
         }
 
@@ -185,12 +124,14 @@ namespace Cave.Windows
         /// <param name="flags"></param>
         public static void NetworkDriveMap(char localDrive, string networkPath, string userName, string password, CONNECT_FLAGS flags)
         {
-            NETRESOURCE l_NetResource = new NETRESOURCE();
-            l_NetResource.Type = RESOURCETYPE.RESOURCETYPE_DISK;
-            l_NetResource.LocalName = localDrive + ":";
-            l_NetResource.RemoteName = networkPath;
-            l_NetResource.Provider = null;
-            int result = WNetAddConnection2A(ref l_NetResource, password, userName, (int)flags);
+            var netResource = new NETRESOURCE
+            {
+                Type = RESOURCETYPE.RESOURCETYPE_DISK,
+                LocalName = localDrive + ":",
+                RemoteName = networkPath,
+                Provider = null
+            };
+            var result = WNetAddConnection2A(ref netResource, password, userName, (int)flags);
             if (result != 0) throw new Win32ErrorException(result);
         }
 
@@ -201,10 +142,10 @@ namespace Cave.Windows
         /// <returns></returns>
         public static string NetworkPrinterGet(int printer)
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             //get length first
-            int len = 0;
-            int result = WNetGetConnection("LPT" + printer, stringBuilder, ref len);
+            var len = 0;
+            var result = WNetGetConnection("LPT" + printer, stringBuilder, ref len);
             //not connected -> return
             if (result == 2250) return null;
             //error ?
@@ -225,7 +166,7 @@ namespace Cave.Windows
         /// <param name="force"></param>
         public static void NetworkPrinterUnmap(int localPrinterPort, bool force)
         {
-            int result = WNetCancelConnection2A("LPT" + localPrinterPort, (int)CONNECT_FLAGS.CONNECT_UPDATE_PROFILE, force);
+            var result = WNetCancelConnection2A("LPT" + localPrinterPort, (int)CONNECT_FLAGS.CONNECT_UPDATE_PROFILE, force);
             if (result != 0) throw new Win32ErrorException(result);
         }
 
@@ -239,12 +180,14 @@ namespace Cave.Windows
         /// <param name="flags"></param>
         public static void NetworkPrinterMap(int localPrinterPort, string networkPath, string userName, string password, CONNECT_FLAGS flags)
         {
-            NETRESOURCE l_NetResource = new NETRESOURCE();
-            l_NetResource.Type = RESOURCETYPE.RESOURCETYPE_PRINT;
-            l_NetResource.LocalName = "LPT" + localPrinterPort;
-            l_NetResource.RemoteName = networkPath;
-            l_NetResource.Provider = null;
-            int result = WNetAddConnection2A(ref l_NetResource, password, userName, (int)flags);
+            var netResource = new NETRESOURCE
+            {
+                Type = RESOURCETYPE.RESOURCETYPE_PRINT,
+                LocalName = "LPT" + localPrinterPort,
+                RemoteName = networkPath,
+                Provider = null
+            };
+            var result = WNetAddConnection2A(ref netResource, password, userName, (int)flags);
             if (result != 0) throw new Win32ErrorException(result);
         }
         #endregion

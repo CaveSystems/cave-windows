@@ -1,67 +1,5 @@
-#region CopyRight 2018
-/*
-    Copyright (c) 2003-2018 Andreas Rohleder (andreas@rohleder.cc)
-    All rights reserved
-*/
-#endregion
-#region License MSPL
-/*
-    This file contains some sourcecode that uses Microsoft Windows API calls
-    to provide functionality that is part of the underlying operating system.
-    The API calls and their documentation are copyrighted work of Microsoft
-    and/or its suppliers. Use of the Software is governed by the terms of the
-    MICROSOFT LIMITED PUBLIC LICENSE.
-
-    You may not use this program/library/sourcecode except in compliance
-    with the License. The License is included in the LICENSE.MSPL file
-    found at the installation directory or the distribution package.
-*/
-#endregion
-#region License LGPL-3
-/*
-    This program/library/sourcecode is free software; you can redistribute it
-    and/or modify it under the terms of the GNU Lesser General Public License
-    version 3 as published by the Free Software Foundation subsequent called
-    the License.
-
-    You may not use this program/library/sourcecode except in compliance
-    with the License. The License is included in the LICENSE file
-    found at the installation directory or the distribution package.
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    "Software"), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be included
-    in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
-#endregion License
-#region Authors & Contributors
-/*
-   Information source:
-     Microsoft Corporation
-
-   Implementation:
-     Andreas Rohleder <andreas@rohleder.cc>
-
-   Contributors:
- */
-#endregion
-
-using Cave.Media.Structs;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace Cave.Windows
@@ -69,6 +7,7 @@ namespace Cave.Windows
     /// <summary>
     /// Provides access to the windows multimedia dll (winmm)
     /// </summary>
+    [SuppressMessage("Interoperability", "CA1401")]
     public class WINMM
     {
         /// <summary>
@@ -217,7 +156,7 @@ namespace Cave.Windows
         /// <param name="dwInstance">User instance data specified with waveInOpen.</param>
         /// <param name="dwParam1">Message parameter.</param>
         /// <param name="dwParam2">Message parameter.</param>
-        public delegate void waveInProc(IntPtr hwi, WIM uMsg, IntPtr dwInstance, ref IntPtr dwParam1, IntPtr dwParam2);
+        public delegate void WaveInProc(IntPtr hwi, WIM uMsg, IntPtr dwInstance, ref IntPtr dwParam1, IntPtr dwParam2);
 
         /// <summary>
         /// The waveOutProc function is the callback function used with the waveform-audio output device. The waveOutProc function is a placeholder for the application-defined function name. The address of this function can be specified in the callback-address parameter of the waveOutOpen function.
@@ -227,7 +166,7 @@ namespace Cave.Windows
         /// <param name="dwInstance">User-instance data specified with waveOutOpen. </param>
         /// <param name="dwParam1">Message parameter. </param>
         /// <param name="dwParam2">Message parameter. </param>
-        public delegate void waveOutProc(IntPtr hwo, WOM uMsg, IntPtr dwInstance, ref IntPtr dwParam1, IntPtr dwParam2);
+        public delegate void WaveOutProc(IntPtr hwo, WOM uMsg, IntPtr dwInstance, ref IntPtr dwParam1, IntPtr dwParam2);
 
         /// <summary>
         /// The mmioStringToFOURCC function converts a null-terminated string to a four-character code.
@@ -237,7 +176,7 @@ namespace Cave.Windows
         /// MMIO_TOUPPER</param>
         /// <returns>Returns the four-character code created from the given string.</returns>
         [DllImport("winmm.dll")]
-        public static extern int mmioStringToFOURCC([MarshalAs(UnmanagedType.LPStr)] string s, int flags);
+        public static extern int mmioStringToFOURCC([MarshalAs(UnmanagedType.LPWStr)] string s, int flags);
 
         /// <summary>Timers use fast period (1ms) resolution.</summary>
         /// <exception cref="Exception">Timer cannot use 1ms resolution mode!</exception>
@@ -318,7 +257,7 @@ namespace Cave.Windows
         /// <param name="dwFlags">Flags for opening the device. The following values are defined.</param>
         /// <returns>Returns MMSYSERR_NOERROR if successful or an error otherwise.</returns>
         [DllImport("winmm.dll")]
-        public static extern RESULT waveOutOpen(out IntPtr hWaveOut, IntPtr uDeviceID, ref WAVEFORMATEX lpFormat, waveOutProc dwCallback, IntPtr dwInstance, OPEN_FLAGS dwFlags);
+        public static extern RESULT waveOutOpen(out IntPtr hWaveOut, IntPtr uDeviceID, ref WAVEFORMATEX lpFormat, WaveOutProc dwCallback, IntPtr dwInstance, OPEN_FLAGS dwFlags);
 
         /// <summary>
         /// The waveOutReset function stops playback on the given waveform-audio output device and resets the current position to zero. All pending playback buffers are marked as done (WHDR_DONE) and returned to the application.
@@ -438,7 +377,7 @@ namespace Cave.Windows
         /// <param name="dwFlags">Flags for opening the device. </param>
         /// <returns>Returns MMSYSERR_NOERROR if successful or an error otherwise.</returns>
         [DllImport("winmm.dll")]
-        public static extern RESULT waveInOpen(out IntPtr hWaveIn, IntPtr uDeviceID, ref WAVEFORMATEX lpFormat, waveInProc dwCallback, IntPtr dwInstance, OPEN_FLAGS dwFlags);
+        public static extern RESULT waveInOpen(out IntPtr hWaveIn, IntPtr uDeviceID, ref WAVEFORMATEX lpFormat, WaveInProc dwCallback, IntPtr dwInstance, OPEN_FLAGS dwFlags);
 
         /// <summary>
         /// This function prepares a buffer for waveform input. This function allows both the audio driver and the operating system (OS) to do time consuming processing of the header and/or buffer once at initialization. The application can use the buffer repeatedly without additional processing by the driver or the OS.
@@ -490,20 +429,14 @@ namespace Cave.Windows
         /// </summary>
         /// <param name="intPtr"></param>
         /// <returns></returns>
-        public static WAVEHDR ReadWAVEHDR(IntPtr intPtr)
-        {
-            return (WAVEHDR)Marshal.PtrToStructure(intPtr, typeof(WAVEHDR));
-        }
+        public static WAVEHDR ReadWAVEHDR(IntPtr intPtr) => (WAVEHDR)Marshal.PtrToStructure(intPtr, typeof(WAVEHDR));
 
         /// <summary>
         /// Writes a WAVEHDR structure to the given pointer without destroying the pointer or structure
         /// </summary>
         /// <param name="intPtr"></param>
         /// <param name="wAVEHDR"></param>
-        public static void WriteWAVEHDR(IntPtr intPtr, WAVEHDR wAVEHDR)
-        {
-            Marshal.StructureToPtr(wAVEHDR, intPtr, true);
-        }
+        public static void WriteWAVEHDR(IntPtr intPtr, WAVEHDR wAVEHDR) => Marshal.StructureToPtr(wAVEHDR, intPtr, true);
 
         /// <summary>
         /// Allocates a pointer for a WAVEHDR structure
@@ -512,7 +445,7 @@ namespace Cave.Windows
         /// <returns></returns>
         public static IntPtr AllocWAVEHDR(WAVEHDR wAVEHDR)
         {
-            IntPtr result = Marshal.AllocHGlobal(Marshal.SizeOf(wAVEHDR));
+            var result = Marshal.AllocHGlobal(Marshal.SizeOf(wAVEHDR));
             Marshal.StructureToPtr(wAVEHDR, result, true);
             return result;
         }

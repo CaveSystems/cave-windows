@@ -1,67 +1,3 @@
-#region CopyRight 2018
-/*
-    Copyright (c) 2003-2018 Andreas Rohleder (andreas@rohleder.cc)
-    All rights reserved
-*/
-#endregion
-#region License MSPL
-/*
-    This file contains some sourcecode that uses Microsoft Windows API calls
-    to provide functionality that is part of the underlying operating system.
-    The API calls and their documentation are copyrighted work of Microsoft
-    and/or its suppliers. Use of the Software is governed by the terms of the
-    MICROSOFT LIMITED PUBLIC LICENSE.
-
-    You may not use this program/library/sourcecode except in compliance
-    with the License. The License is included in the LICENSE.MSPL file
-    found at the installation directory or the distribution package.
-*/
-#endregion
-#region License LGPL-3
-/*
-    This program/library/sourcecode is free software; you can redistribute it
-    and/or modify it under the terms of the GNU Lesser General Public License
-    version 3 as published by the Free Software Foundation subsequent called
-    the License.
-
-    You may not use this program/library/sourcecode except in compliance
-    with the License. The License is included in the LICENSE file
-    found at the installation directory or the distribution package.
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    "Software"), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be included
-    in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
-#endregion License
-#region Authors & Contributors
-/*
-   Information source:
-     Microsoft Corporation
-
-   Implementation:
-     Andreas Rohleder <andreas@rohleder.cc>
-
-   Contributors:
- */
-#endregion
-
-#if !NETSTANDARD20
-
 //ignore missing comments on this file
 //TODO complete and add missing comments
 #pragma warning disable 1591
@@ -70,6 +6,7 @@ using Cave.Net;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 
 namespace Cave.Windows
@@ -78,6 +15,7 @@ namespace Cave.Windows
     /// Firewall and Advanced Security Protocol
     /// https://msdn.microsoft.com/en-us/library/cc231461.aspx
     /// </summary>
+    [SuppressMessage("Design", "CA1069")]
     public class FW
     {
         /// <summary>
@@ -370,15 +308,10 @@ namespace Cave.Windows
             /// </summary>
             public IPAddress SubnetMask;
 
-            public static IPV4_SUBNET FromString(string s)
-            {
-                throw new NotImplementedException();
-            }
+            [SuppressMessage("Style", "IDE0060")]
+            public static IPV4_SUBNET Parse(string text) => throw new NotImplementedException();
 
-            public override string ToString()
-            {
-                throw new NotImplementedException();
-            }
+            public override string ToString() => throw new NotImplementedException();
         }
 
         /// <summary>
@@ -396,15 +329,10 @@ namespace Cave.Windows
             /// </summary>
             public IPAddress EndAddress;
 
-            public static IPV4_SUBNET FromString(string s)
-            {
-                throw new NotImplementedException();
-            }
+            [SuppressMessage("Style", "IDE0060")]
+            public static IPV4_SUBNET Parse(string text) => throw new NotImplementedException();
 
-            public override string ToString()
-            {
-                throw new NotImplementedException();
-            }
+            public override string ToString() => throw new NotImplementedException();
         }
 
         /// <summary>
@@ -417,15 +345,10 @@ namespace Cave.Windows
             /// </summary>
             public IPAddress Address;
 
-            public static IPV4_SUBNET FromString(string s)
-            {
-                throw new NotImplementedException();
-            }
+            [SuppressMessage("Style", "IDE0060")]
+            public static IPV4_SUBNET Parse(string text) => throw new NotImplementedException();
 
-            public override string ToString()
-            {
-                throw new NotImplementedException();
-            }
+            public override string ToString() => throw new NotImplementedException();
         }
 
         /// <summary>
@@ -443,15 +366,10 @@ namespace Cave.Windows
             /// </summary>
             public IPAddress EndAddress;
 
-            public static IPV4_SUBNET FromString(string s)
-            {
-                throw new NotImplementedException();
-            }
+            [SuppressMessage("Style", "IDE0060")]
+            public static IPV4_SUBNET Parse(string text) => throw new NotImplementedException();
 
-            public override string ToString()
-            {
-                throw new NotImplementedException();
-            }
+            public override string ToString() => throw new NotImplementedException();
 
         }
 
@@ -490,13 +408,7 @@ namespace Cave.Windows
             /// </summary>
             public IPV6_ADDRESS_RANGE[] V6Ranges;
 
-            public void Add(string text)
-            {
-                switch (text.ToLower())
-                {
-                    default: throw new NotImplementedException();
-                }
-            }
+            public void Add(string text) => throw new NotImplementedException();
         }
 
         public struct ICMtype_CODE
@@ -551,13 +463,13 @@ namespace Cave.Windows
 
             public OS_PLATFORM_OP Op
             {
-                get { return (OS_PLATFORM_OP)(Platform >> 3); }
-                set { Platform = (byte)((Platform & 0x7) | ((int)value << 3)); }
+                get => (OS_PLATFORM_OP)(Platform >> 3);
+                set => Platform = (byte)((Platform & 0x7) | ((int)value << 3));
             }
 
             public int PlatformId
             {
-                get { return Platform & 0x7; }
+                get => Platform & 0x7;
                 set
                 {
                     if ((value > 3) || (value < 0)) throw new ArgumentOutOfRangeException(nameof(value));
@@ -634,26 +546,26 @@ namespace Cave.Windows
             /// <summary>
             /// This field is a combination of FW_PORT_KEYWORDS.
             /// </summary>
-            PORT_KEYWORD Keywords;
+            PORT_KEYWORD keywords;
 
             /// <summary>
             /// This field is a list of specifically defined ports.
             /// </summary>
-            List<PORT_RANGE> Ports = new List<PORT_RANGE>();
+            readonly List<PORT_RANGE> Ports = new();
 
             public void Add(string port)
             {
                 switch (port)
                 {
-                    case "RPC": Keywords |= PORT_KEYWORD.DYNAMIC_RPC_PORTS; break;
+                    case "RPC": keywords |= PORT_KEYWORD.DYNAMIC_RPC_PORTS; break;
                     default: AddRange(port); break;
                 }
             }
 
-            public void AddRange(string range)
-            {
-                Ports.Add(PORT_RANGE.Parse(range));
-            }
+            public void AddRange(string range) => Ports.Add(PORT_RANGE.Parse(range));
+
+            /// <inheritdoc />
+            public override string ToString() => keywords.ToString();
         }
 
         /// <summary>
@@ -673,8 +585,8 @@ namespace Cave.Windows
 
             public static PORT_RANGE Parse(string ports)
             {
-                PORT_RANGE result = new PORT_RANGE();
-                int i = ports.IndexOf('-');
+                var result = new PORT_RANGE();
+                var i = ports.IndexOf('-');
                 if (i > -1)
                 {
                     result.StartPort = ushort.Parse(ports.Substring(0, i));
@@ -690,60 +602,62 @@ namespace Cave.Windows
 
         public class RULE
         {
-            public static RULE[] FromRegistry()
-            {
-                List<RULE> l_Rules = new List<RULE>();
-                RegistryKey l_Static = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\RestrictedServices\Static\System");
-                RegistryKey config = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\RestrictedServices\Configurable\System");
-                foreach (string name in l_Static.GetValueNames())
-                {
-                    RULE l_Rule = new RULE();
+            const string FirewallPolicySystem = @"SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\RestrictedServices\Static\System";
+            const string FirewallPolicyConfig = @"SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\RestrictedServices\Configurable\System";
 
-                    string[] parts = ((string)l_Static.GetValue(name)).Split('|');
-                    l_Rule.Version = new Version(parts[0].Substring(1));
-                    for (int i = 1; i < parts.Length; i++)
+            public static RULE[] FromRegistry(bool configurable = false)
+            {
+                var rules = new List<RULE>();
+                var source = Registry.LocalMachine.OpenSubKey(configurable ? FirewallPolicyConfig : FirewallPolicySystem);
+                foreach (var name in source.GetValueNames())
+                {
+                    var rule = new RULE();
+
+                    var parts = ((string)source.GetValue(name)).Split('|');
+                    rule.Version = new Version(parts[0].Substring(1));
+                    for (var i = 1; i < parts.Length; i++)
                     {
                         if (parts[i].Length == 0) continue;
-                        int n = parts[i].IndexOf('=');
+                        var n = parts[i].IndexOf('=');
                         if (n < 0) continue;
 
-                        string field = parts[i].Substring(0, n);
-                        string value = parts[i].Substring(n + 1);
+                        var field = parts[i].Substring(0, n);
+                        var value = parts[i].Substring(n + 1);
                         switch (field.ToLower())
                         {
-                            case "action": l_Rule.Action = (RULE_ACTION)Enum.Parse(typeof(RULE_ACTION), value, true); continue;
-                            case "dir": l_Rule.Direction = (DIRECTION)Enum.Parse(typeof(DIRECTION), value, true); continue;
-                            case "profile": l_Rule.Profile = (PROFILE_TYPE)Enum.Parse(typeof(PROFILE_TYPE), value, true); continue;
-                            case "protocol": l_Rule.Protocol = (IanaProtocolNumber)int.Parse(value); continue;
-                            case "lport": l_Rule.LocalPorts.Add(value); continue;
-                            case "lport2_10": l_Rule.LocalPorts.AddRange(value); continue;
-                            case "rport": l_Rule.RemotePorts.Add(value); continue;
-                            case "rport2_10": l_Rule.RemotePorts.AddRange(value); continue;
+                            case "action": rule.Action = (RULE_ACTION)Enum.Parse(typeof(RULE_ACTION), value, true); continue;
+                            case "dir": rule.Direction = (DIRECTION)Enum.Parse(typeof(DIRECTION), value, true); continue;
+                            case "profile": rule.Profile = (PROFILE_TYPE)Enum.Parse(typeof(PROFILE_TYPE), value, true); continue;
+                            case "protocol": rule.Protocol = (IanaProtocolNumber)int.Parse(value); continue;
+                            case "lport": rule.LocalPorts.Add(value); continue;
+                            case "lport2_10": rule.LocalPorts.AddRange(value); continue;
+                            case "rport": rule.RemotePorts.Add(value); continue;
+                            case "rport2_10": rule.RemotePorts.AddRange(value); continue;
                             case "security": throw new NotImplementedException();
                             case "security2_9": throw new NotImplementedException();
                             case "security2": throw new NotImplementedException();
-                            case "if": l_Rule.InterfaceIds = value; continue;
-                            case "iftype": l_Rule.InterfaceType = (INTERFACE_TYPE)int.Parse(value); continue;
-                            case "app": l_Rule.Application = value; continue;
-                            case "svc": l_Rule.Service = value; continue;
-                            case "la4": l_Rule.LocalAddresses.Add(value); continue;
-                            case "la6": l_Rule.LocalAddresses.Add(value); continue;
-                            case "ra4": l_Rule.RemoteAddresses.Add(value); continue;
-                            case "ra6": l_Rule.RemoteAddresses.Add(value); continue;
-                            case "name": l_Rule.Name = value; continue;
-                            case "desc": l_Rule.Description = value; continue;
-                            case "edge": l_Rule.RouteableAddrsTraverse = bool.Parse(value); continue;
+                            case "if": rule.InterfaceIds = value; continue;
+                            case "iftype": rule.InterfaceType = (INTERFACE_TYPE)int.Parse(value); continue;
+                            case "app": rule.Application = value; continue;
+                            case "svc": rule.Service = value; continue;
+                            case "la4": rule.LocalAddresses.Add(value); continue;
+                            case "la6": rule.LocalAddresses.Add(value); continue;
+                            case "ra4": rule.RemoteAddresses.Add(value); continue;
+                            case "ra6": rule.RemoteAddresses.Add(value); continue;
+                            case "name": rule.Name = value; continue;
+                            case "desc": rule.Description = value; continue;
+                            case "edge": rule.RouteableAddrsTraverse = bool.Parse(value); continue;
                             case "defer": throw new NotImplementedException();
-                            case "lsm": l_Rule.LooseSourceMapped = bool.Parse(value); continue;
-                            case "active": l_Rule.Active = bool.Parse(value); continue;
+                            case "lsm": rule.LooseSourceMapped = bool.Parse(value); continue;
+                            case "active": rule.Active = bool.Parse(value); continue;
                             case "icmp4": throw new NotImplementedException();
                             case "icmp6": throw new NotImplementedException();
                             case "platform": throw new NotImplementedException();
                             case "rmauth": throw new NotImplementedException();
                             case "ruauth": throw new NotImplementedException();
-                            case "authbypassout": l_Rule.AuthenticateByPassOutbound = bool.Parse(value); continue;
-                            case "skipver": l_Rule.SkipVersion = new Version(value); continue;
-                            case "lom": l_Rule.LocalOnlyMapped = bool.Parse(value); continue;
+                            case "authbypassout": rule.AuthenticateByPassOutbound = bool.Parse(value); continue;
+                            case "skipver": rule.SkipVersion = new Version(value); continue;
+                            case "lom": rule.LocalOnlyMapped = bool.Parse(value); continue;
                             case "platform2": throw new NotImplementedException();
                             case "pcross": throw new NotImplementedException();
                             case "luauth": throw new NotImplementedException();
@@ -756,42 +670,42 @@ namespace Cave.Windows
                             default: throw new NotSupportedException(string.Format("Unsupported field {0}", field));
                         }
                     }
-                    l_Rules.Add(l_Rule);
+                    rules.Add(rule);
                 }
-                return l_Rules.ToArray();
+                return rules.ToArray();
             }
 
             public bool Active
             {
-                get { return 0 != (Flags & RULE_FLAGS.ACTIVE); }
-                set { Flags = value ? (Flags | RULE_FLAGS.ACTIVE) : (Flags & ~RULE_FLAGS.ACTIVE); }
+                get => 0 != (Flags & RULE_FLAGS.ACTIVE);
+                set => Flags = value ? (Flags | RULE_FLAGS.ACTIVE) : (Flags & ~RULE_FLAGS.ACTIVE);
             }
 
             public bool LocalOnlyMapped
             {
-                get { return 0 != (Flags & RULE_FLAGS.LOCAL_ONLY_MAPPED); }
-                set { Flags = value ? (Flags | RULE_FLAGS.LOCAL_ONLY_MAPPED) : (Flags & ~RULE_FLAGS.LOCAL_ONLY_MAPPED); }
+                get => 0 != (Flags & RULE_FLAGS.LOCAL_ONLY_MAPPED);
+                set => Flags = value ? (Flags | RULE_FLAGS.LOCAL_ONLY_MAPPED) : (Flags & ~RULE_FLAGS.LOCAL_ONLY_MAPPED);
             }
 
             public bool RouteableAddrsTraverse
             {
-                get { return 0 != (Flags & RULE_FLAGS.ROUTEABLE_ADDRS_TRAVERSE); }
-                set { Flags = value ? (Flags | RULE_FLAGS.ROUTEABLE_ADDRS_TRAVERSE) : (Flags & ~RULE_FLAGS.ROUTEABLE_ADDRS_TRAVERSE); }
+                get => 0 != (Flags & RULE_FLAGS.ROUTEABLE_ADDRS_TRAVERSE);
+                set => Flags = value ? (Flags | RULE_FLAGS.ROUTEABLE_ADDRS_TRAVERSE) : (Flags & ~RULE_FLAGS.ROUTEABLE_ADDRS_TRAVERSE);
             }
 
             public bool LooseSourceMapped
             {
-                get { return 0 != (Flags & RULE_FLAGS.LOOSE_SOURCE_MAPPED); }
-                set { Flags = value ? (Flags | RULE_FLAGS.LOOSE_SOURCE_MAPPED) : (Flags & ~RULE_FLAGS.LOOSE_SOURCE_MAPPED); }
+                get => 0 != (Flags & RULE_FLAGS.LOOSE_SOURCE_MAPPED);
+                set => Flags = value ? (Flags | RULE_FLAGS.LOOSE_SOURCE_MAPPED) : (Flags & ~RULE_FLAGS.LOOSE_SOURCE_MAPPED);
             }
 
             public bool AuthenticateByPassOutbound
             {
-                get { return 0 != (Flags & RULE_FLAGS.AUTHENTICATE_BYPASS_OUTBOUND); }
-                set { Flags = value ? (Flags | RULE_FLAGS.AUTHENTICATE_BYPASS_OUTBOUND) : (Flags & ~RULE_FLAGS.AUTHENTICATE_BYPASS_OUTBOUND); }
+                get => 0 != (Flags & RULE_FLAGS.AUTHENTICATE_BYPASS_OUTBOUND);
+                set => Flags = value ? (Flags | RULE_FLAGS.AUTHENTICATE_BYPASS_OUTBOUND) : (Flags & ~RULE_FLAGS.AUTHENTICATE_BYPASS_OUTBOUND);
             }
 
-            public Version Version = new Version(2, 0);
+            public Version Version = new(2, 0);
 
             public RULE_FLAGS Flags;
 
@@ -811,13 +725,13 @@ namespace Cave.Windows
 
             public string Service;
 
-            public ADDRESSES LocalAddresses = new ADDRESSES();
+            public ADDRESSES LocalAddresses = new();
 
-            public ADDRESSES RemoteAddresses = new ADDRESSES();
+            public ADDRESSES RemoteAddresses = new();
 
-            public PORTS LocalPorts = new PORTS();
+            public PORTS LocalPorts = new();
 
-            public PORTS RemotePorts = new PORTS();
+            public PORTS RemotePorts = new();
 
             public string Name;
 
@@ -833,5 +747,3 @@ namespace Cave.Windows
 }
 
 #pragma warning restore 1591
-
-#endif

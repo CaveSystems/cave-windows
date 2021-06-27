@@ -1,81 +1,22 @@
-#region CopyRight 2018
-/*
-    Copyright (c) 2003-2018 Andreas Rohleder (andreas@rohleder.cc)
-    All rights reserved
-*/
-#endregion
-#region License MSPL
-/*
-    This file contains some sourcecode that uses Microsoft Windows API calls
-    to provide functionality that is part of the underlying operating system.
-    The API calls and their documentation are copyrighted work of Microsoft
-    and/or its suppliers. Use of the Software is governed by the terms of the
-    MICROSOFT LIMITED PUBLIC LICENSE.
-
-    You may not use this program/library/sourcecode except in compliance
-    with the License. The License is included in the LICENSE.MSPL file
-    found at the installation directory or the distribution package.
-*/
-#endregion
-#region License LGPL-3
-/*
-    This program/library/sourcecode is free software; you can redistribute it
-    and/or modify it under the terms of the GNU Lesser General Public License
-    version 3 as published by the Free Software Foundation subsequent called
-    the License.
-
-    You may not use this program/library/sourcecode except in compliance
-    with the License. The License is included in the LICENSE file
-    found at the installation directory or the distribution package.
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    "Software"), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be included
-    in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
-#endregion License
-#region Authors & Contributors
-/*
-   Information source:
-     Microsoft Corporation
-
-   Implementation:
-     Andreas Rohleder <andreas@rohleder.cc>
-
-   Contributors:
- */
-#endregion
-
-#if !NETSTANDARD20
-
-using Cave.Media.Structs;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Text;
 using System.Threading;
+#if !NETSTANDARD20
 using System.Windows.Forms;
+#endif
 
 namespace Cave.Windows
 {
     /// <summary>
     /// Interface to the Windows API User32.dll
     /// </summary>
+    [SuppressUnmanagedCodeSecurity]
+    [SuppressMessage("Interoperability", "CA1401")]
     public static class USER32
     {
         #region Capture bitmap
@@ -86,24 +27,24 @@ namespace Cave.Windows
         /// <returns></returns>
         public static Bitmap CaptureWindow(IntPtr hWnd)
         {
-            RECT l_Rect = new RECT();
-            if (!GetWindowRect(hWnd, ref l_Rect)) return null;
+            var rect = new Rectangle();
+            if (!GetWindowRect(hWnd, ref rect)) return null;
             // create a bitmap from the visible clipping bounds of
             //the graphics object from the window
-            Bitmap bitmap = new Bitmap(l_Rect.Width, l_Rect.Height);
+            var bitmap = new Bitmap(rect.Width, rect.Height);
             // create a graphics object from the bitmap
-            Graphics l_Graphics = Graphics.FromImage(bitmap);
+            var graphics = Graphics.FromImage(bitmap);
             // get a device context for the bitmap
-            IntPtr l_Target = l_Graphics.GetHdc();
+            var target = graphics.GetHdc();
             // get a device context for the window
-            IntPtr l_Source = GetWindowDC(hWnd);
+            var source = GetWindowDC(hWnd);
             // bitblt the window to the bitmap
-            GDI32.SafeNativeMethods.BitBlt(l_Target, 0, 0, l_Rect.Width, l_Rect.Height, l_Source, 0, 0, GDI32.TernaryRasterOperations.SRCCOPY);
+            GDI32.SafeNativeMethods.BitBlt(target, 0, 0, rect.Width, rect.Height, source, 0, 0, GDI32.TernaryRasterOperations.SRCCOPY);
             // release the bitmap's device context
-            l_Graphics.ReleaseHdc(l_Target);
-            ReleaseDC(hWnd, l_Source);
+            graphics.ReleaseHdc(target);
+            ReleaseDC(hWnd, source).ThrowOnError();
             // dispose of the bitmap's graphics object
-            l_Graphics.Dispose();
+            graphics.Dispose();
             // return the bitmap of the window
             return bitmap;
         }
@@ -114,28 +55,29 @@ namespace Cave.Windows
         /// <param name="hWnd"></param>
         /// <param name="rect"></param>
         /// <returns></returns>
-        public static Bitmap CaptureWindow(IntPtr hWnd, RECT rect)
+        public static Bitmap CaptureWindow(IntPtr hWnd, Rectangle rect)
         {
             // create a bitmap from the visible clipping bounds of
             //the graphics object from the window
-            Bitmap bitmap = new Bitmap(rect.Width, rect.Height);
+            var bitmap = new Bitmap(rect.Width, rect.Height);
             // create a graphics object from the bitmap
-            Graphics l_Graphics = Graphics.FromImage(bitmap);
+            var graphics = Graphics.FromImage(bitmap);
             // get a device context for the bitmap
-            IntPtr l_Target = l_Graphics.GetHdc();
+            var target = graphics.GetHdc();
             // get a device context for the window
-            IntPtr l_Source = GetWindowDC(hWnd);
+            var source = GetWindowDC(hWnd);
             // bitblt the window to the bitmap
-            GDI32.SafeNativeMethods.BitBlt(l_Target, 0, 0, rect.Width, rect.Height, l_Source, rect.Left, rect.Top, GDI32.TernaryRasterOperations.SRCCOPY);
+            GDI32.SafeNativeMethods.BitBlt(target, 0, 0, rect.Width, rect.Height, source, rect.Left, rect.Top, GDI32.TernaryRasterOperations.SRCCOPY);
             // release the bitmap's device context
-            l_Graphics.ReleaseHdc(l_Target);
-            ReleaseDC(hWnd, l_Source);
+            graphics.ReleaseHdc(target);
+            ReleaseDC(hWnd, source);
             // dispose of the bitmap's graphics object
-            l_Graphics.Dispose();
+            graphics.Dispose();
             // return the bitmap of the window
             return bitmap;
         }
 
+#if !NETSTANDARD20
         /// <summary>
         /// captures a bitmap of the currently visible desktop (all screens) within the specified rectangle
         /// </summary>
@@ -143,33 +85,33 @@ namespace Cave.Windows
         /// <returns></returns>
         public static Bitmap CaptureDesktop(Rectangle rectangle)
         {
-            Rectangle l_ScreenRectangle = Rectangle.Empty;
-            Screen[] l_Screens = Screen.AllScreens;
+            var screenRectangle = Rectangle.Empty;
+            var screens = Screen.AllScreens;
             // Create a rectangle encompassing all screens...
-            foreach (Screen l_Screen in l_Screens) l_ScreenRectangle = Rectangle.Union(l_ScreenRectangle, l_Screen.Bounds);
+            foreach (var screen in screens) screenRectangle = Rectangle.Union(screenRectangle, screen.Bounds);
             //Create target composite bitmap
-            Bitmap bitmap = new Bitmap(rectangle.Width, rectangle.Height);
+            var bitmap = new Bitmap(rectangle.Width, rectangle.Height);
             // Get a graphics object for the composite bitmap and initialize it...
-            Graphics l_Graphics = Graphics.FromImage(bitmap);
-            l_Graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighSpeed;
-            l_Graphics.Clear(SystemColors.Desktop);
+            var graphics = Graphics.FromImage(bitmap);
+            graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighSpeed;
+            graphics.Clear(SystemColors.Desktop);
             // Get an HDC for the composite area...
-            IntPtr l_Target = l_Graphics.GetHdc();
+            var target = graphics.GetHdc();
             // Now, loop through screens, BitBlting each to the composite HDC created above...
-            bool success = true;
-            foreach (Screen l_Screen in l_Screens)
+            var success = true;
+            foreach (var screen in screens)
             {
-                int x = l_Screen.Bounds.X - rectangle.X;
-                int y = l_Screen.Bounds.Y - rectangle.Y;
+                var x = screen.Bounds.X - rectangle.X;
+                var y = screen.Bounds.Y - rectangle.Y;
                 // Create DC for each source monitor...
-                IntPtr l_Source = GDI32.SafeNativeMethods.CreateDC(IntPtr.Zero, l_Screen.DeviceName, IntPtr.Zero, IntPtr.Zero);
-                success &= GDI32.SafeNativeMethods.BitBlt(l_Target, x, y, l_Screen.Bounds.Width, l_Screen.Bounds.Height, l_Source, rectangle.Left, rectangle.Top, GDI32.TernaryRasterOperations.SRCCOPY);
+                var source = GDI32.SafeNativeMethods.CreateDC(IntPtr.Zero, screen.DeviceName, IntPtr.Zero, IntPtr.Zero);
+                success &= GDI32.SafeNativeMethods.BitBlt(target, x, y, screen.Bounds.Width, screen.Bounds.Height, source, rectangle.Left, rectangle.Top, GDI32.TernaryRasterOperations.SRCCOPY);
                 // Cleanup source HDC...
-                GDI32.SafeNativeMethods.DeleteDC(l_Source);
+                GDI32.SafeNativeMethods.DeleteDC(source);
             }
             // Cleanup destination HDC and Graphics...
-            l_Graphics.ReleaseHdc(l_Target);
-            l_Graphics.Dispose();
+            graphics.ReleaseHdc(target);
+            graphics.Dispose();
             // Return composite bitmap or throw exception
             if (!success) throw new Win32ErrorException();
             return bitmap;
@@ -181,43 +123,45 @@ namespace Cave.Windows
         /// <returns></returns>
         public static Bitmap CaptureDesktop()
         {
-            Win32ErrorException l_Error = null;
-            Rectangle l_ScreenRectangle = Rectangle.Empty;
-            Screen[] l_Screens = Screen.AllScreens;
+            Win32ErrorException error = null;
+            var screenRectangle = Rectangle.Empty;
+            var screens = Screen.AllScreens;
             // Create a rectangle encompassing all screens...
-            foreach (Screen l_Screen in l_Screens) l_ScreenRectangle = Rectangle.Union(l_ScreenRectangle, l_Screen.Bounds);
+            foreach (var screen in screens) screenRectangle = Rectangle.Union(screenRectangle, screen.Bounds);
             //Create target composite bitmap
-            Bitmap bitmap = new Bitmap(l_ScreenRectangle.Width, l_ScreenRectangle.Height);
+            var bitmap = new Bitmap(screenRectangle.Width, screenRectangle.Height);
             // Get a graphics object for the composite bitmap and initialize it...
-            Graphics l_Graphics = Graphics.FromImage(bitmap);
-            l_Graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighSpeed;
-            l_Graphics.Clear(SystemColors.Desktop);
+            var graphics = Graphics.FromImage(bitmap);
+            graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighSpeed;
+            graphics.Clear(SystemColors.Desktop);
             // Get an HDC for the composite area...
-            IntPtr l_Target = l_Graphics.GetHdc();
+            var target = graphics.GetHdc();
             // Now, loop through screens, BitBlting each to the composite HDC created above...
-            foreach (Screen l_Screen in l_Screens)
+            foreach (var screen in screens)
             {
                 // Create DC for each source monitor...
-                IntPtr l_Source = GDI32.SafeNativeMethods.CreateDC(IntPtr.Zero, l_Screen.DeviceName, IntPtr.Zero, IntPtr.Zero);
+                var source = GDI32.SafeNativeMethods.CreateDC(IntPtr.Zero, screen.DeviceName, IntPtr.Zero, IntPtr.Zero);
                 // Blt the source directly to the composite destination...
-                int x = l_Screen.Bounds.X - l_ScreenRectangle.X;
-                int y = l_Screen.Bounds.Y - l_ScreenRectangle.Y;
-                bool l_ThisOne = GDI32.SafeNativeMethods.StretchBlt(l_Target, x, y, l_Screen.Bounds.Width, l_Screen.Bounds.Height, l_Source, 0, 0, l_Screen.Bounds.Width, l_Screen.Bounds.Height, GDI32.TernaryRasterOperations.SRCCOPY);
-                if (!l_ThisOne)
+                var x = screen.Bounds.X - screenRectangle.X;
+                var y = screen.Bounds.Y - screenRectangle.Y;
+                var thisOne = GDI32.SafeNativeMethods.StretchBlt(target, x, y, screen.Bounds.Width, screen.Bounds.Height, source, 0, 0, screen.Bounds.Width, screen.Bounds.Height, GDI32.TernaryRasterOperations.SRCCOPY);
+                if (!thisOne)
                 {
-                    l_Error = new Win32ErrorException();
+                    error = new Win32ErrorException();
                 }
                 // Cleanup source HDC...
-                GDI32.SafeNativeMethods.DeleteDC(l_Source);
-                if (!l_ThisOne) break;
+                GDI32.SafeNativeMethods.DeleteDC(source);
+                if (!thisOne) break;
             }
             // Cleanup destination HDC and Graphics...
-            l_Graphics.ReleaseHdc(l_Target);
-            l_Graphics.Dispose();
+            graphics.ReleaseHdc(target);
+            graphics.Dispose();
             // Return composite bitmap or throw exception
-            if (l_Error != null) throw l_Error;
+            if (error != null) throw error;
             return bitmap;
         }
+#endif
+
         #endregion
 
         #region function imports
@@ -238,7 +182,7 @@ namespace Cave.Windows
         /// <param name="lpString"></param>
         /// <param name="nMaxCount"></param>
         /// <returns></returns>
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         public static extern int GetWindowModuleFileName(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
 
         /// <summary>
@@ -246,28 +190,28 @@ namespace Cave.Windows
         /// </summary>
         /// <param name="hWnd">A handle to the window.</param>
         /// <param name="hWndInsertAfter">A handle to the window to precede the positioned window in the Z order. This parameter must be a window handle.</param>
-        /// <param name="X">The new position of the left side of the window, in client coordinates. </param>
-        /// <param name="Y">The new position of the top of the window, in client coordinates. </param>
-        /// <param name="Width">The new width of the window, in pixels. </param>
-        /// <param name="Height">The new height of the window, in pixels. </param>
-        /// <param name="Flags"></param>
+        /// <param name="x">The new position of the left side of the window, in client coordinates. </param>
+        /// <param name="y">The new position of the top of the window, in client coordinates. </param>
+        /// <param name="width">The new width of the window, in pixels. </param>
+        /// <param name="height">The new height of the window, in pixels. </param>
+        /// <param name="flags"></param>
         /// <returns></returns>
         [DllImport("user32.dll")]
-        public static extern int SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int Width, int Height, SWP Flags);
+        public static extern int SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int width, int height, SWP flags);
 
         /// <summary>
         /// Changes the size, position, and Z order of a child, pop-up, or top-level window. These windows are ordered according to their appearance on the screen. The topmost window receives the highest rank and is the first window in the Z order.
         /// </summary>
         /// <param name="hWnd">A handle to the window.</param>
-        /// <param name="Mode"></param>
-        /// <param name="X">The new position of the left side of the window, in client coordinates. </param>
-        /// <param name="Y">The new position of the top of the window, in client coordinates. </param>
-        /// <param name="Width">The new width of the window, in pixels. </param>
-        /// <param name="Height">The new height of the window, in pixels. </param>
-        /// <param name="Flags"></param>
+        /// <param name="mode"></param>
+        /// <param name="x">The new position of the left side of the window, in client coordinates. </param>
+        /// <param name="y">The new position of the top of the window, in client coordinates. </param>
+        /// <param name="width">The new width of the window, in pixels. </param>
+        /// <param name="height">The new height of the window, in pixels. </param>
+        /// <param name="flags"></param>
         /// <returns></returns>
         [DllImport("user32.dll")]
-        public static extern int SetWindowPos(IntPtr hWnd, HWND_MODE Mode, int X, int Y, int Width, int Height, SWP Flags);
+        public static extern int SetWindowPos(IntPtr hWnd, HWND_MODE mode, int x, int y, int width, int height, SWP flags);
 
         /// <summary>
         /// The GetWindowPlacement function retrieves the show state and the restored, minimized, and maximized positions of the specified window.
@@ -283,7 +227,7 @@ namespace Cave.Windows
         /// </summary>
         /// <param name="message"></param>
         /// <returns></returns>
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         public static extern int RegisterWindowMessage(string message);
 
         /// <summary>
@@ -292,8 +236,8 @@ namespace Cave.Windows
         /// <param name="hWnd">A handle to the window or control containing the text.</param>
         /// <param name="lpString">The buffer that will receive the text. If the string is as long or longer than the buffer, the string is truncated and terminated with a null character.</param>
         /// <param name="nMaxCount">The maximum number of characters to copy to the buffer, including the null character. If the text exceeds this limit, it is truncated.</param>
-        /// <returns></returns>
-        [DllImport("user32.dll")]
+        /// <returns>If the function succeeds, the return value is the length, in characters, of the copied string, not including the terminating null character. If the window has no title bar or text, if the title bar is empty, or if the window or control handle is invalid, the return value is zero. To get extended error information, call GetLastError.</returns>
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
 
         /// <summary>
@@ -301,12 +245,12 @@ namespace Cave.Windows
         /// </summary>
         public static string GetWindowText(IntPtr hWnd)
         {
-            int size = 1024;
+            var size = 1024;
             while (true)
             {
-                StringBuilder stringBuilder = new StringBuilder(size);
-                int l_Read = GetWindowText(hWnd, stringBuilder, size);
-                if (l_Read < size) return stringBuilder.ToString();
+                var stringBuilder = new StringBuilder(size);
+                var read = GetWindowText(hWnd, stringBuilder, size);
+                if (read < size) return stringBuilder.ToString();
                 size *= 2;
             }
         }
@@ -332,22 +276,22 @@ namespace Cave.Windows
         /// The GetWindowLong function retrieves information about the specified window. The function also retrieves the 32-bit (long) value at the specified offset into the extra window ...
         /// </summary>
         /// <param name="hWnd"></param>
-        /// <param name="Index"></param>
+        /// <param name="index"></param>
         /// <returns></returns>
         [DllImport("user32.dll")]
-        public static extern WS GetWindowLong(IntPtr hWnd, GWL Index);
+        public static extern WS GetWindowLong(IntPtr hWnd, GWL index);
 
         /// <summary>
         /// Changes an attribute of the specified window. The function also sets the 32-bit (long) value at the specified offset into the extra window memory.
         /// Note: This function has been superseded by the SetWindowLongPtr function. To write code that is compatible with both 32-bit and 64-bit versions of Windows, use the SetWindowLongPtr function
         /// </summary>
         /// <param name="hWnd">A handle to the window and, indirectly, the class to which the window belongs.</param>
-        /// <param name="Index">The zero-based offset to the value to be set. Valid values are in the range zero through the number of bytes of extra window memory, minus the size of an integer. To set any other value, specify one of the following values. </param>
+        /// <param name="index">The zero-based offset to the value to be set. Valid values are in the range zero through the number of bytes of extra window memory, minus the size of an integer. To set any other value, specify one of the following values. </param>
         /// <param name="dwNewLong">The replacement value. </param>
         /// <returns>If the function succeeds, the return value is the previous value of the specified 32-bit integer.
         /// If the function fails, the return value is zero. To get extended error information, call GetLastError. </returns>
         [DllImport("user32.dll")]
-        public static extern WS SetWindowLong(IntPtr hWnd, GWL Index, WS dwNewLong);
+        public static extern WS SetWindowLong(IntPtr hWnd, GWL index, WS dwNewLong);
 
         /// <summary>
         /// Changes an attribute of the specified window. The function also sets the 32-bit (long) value at the specified offset into the extra window memory.
@@ -376,7 +320,7 @@ namespace Cave.Windows
         /// <param name="lpClassName"></param>
         /// <param name="nMaxCount"></param>
         /// <returns></returns>
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         public static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
 
         /// <summary>
@@ -384,12 +328,12 @@ namespace Cave.Windows
         /// </summary>
         public static string GetClassName(IntPtr hWnd)
         {
-            int size = 1024;
+            var size = 1024;
             while (true)
             {
-                StringBuilder stringBuilder = new StringBuilder(size);
-                int l_Read = USER32.GetClassName(hWnd, stringBuilder, size);
-                if (l_Read < size) return stringBuilder.ToString();
+                var stringBuilder = new StringBuilder(size);
+                var read = USER32.GetClassName(hWnd, stringBuilder, size);
+                if (read < size) return stringBuilder.ToString();
                 size *= 2;
             }
         }
@@ -510,7 +454,7 @@ namespace Cave.Windows
         /// <param name="hdc"></param>
         /// <returns></returns>
         [DllImport("user32.dll")]
-        public static extern int ReleaseDC(IntPtr hwnd, IntPtr hdc);
+        public static extern ErrorCode ReleaseDC(IntPtr hwnd, IntPtr hdc);
 
         /// <summary>
         /// Retrieves the dimensions of the bounding rectangle of the specified window. The dimensions are given in screen coordinates that are relative to the upper-left corner of the screen.
@@ -519,7 +463,7 @@ namespace Cave.Windows
         /// <param name="rectangle"></param>
         /// <returns></returns>
         [DllImport("user32.dll")]
-        public static extern bool GetWindowRect(IntPtr hwnd, ref RECT rectangle);
+        public static extern bool GetWindowRect(IntPtr hwnd, ref Rectangle rectangle);
 
         /// <summary>
         /// Retrieves the coordinates of a window's client area. The client coordinates specify the upper-left and lower-right corners of the client area. Because client coordinates are relative to the upper-left corner of a window's client area, the coordinates of the upper-left corner are (0,0).
@@ -528,7 +472,7 @@ namespace Cave.Windows
         /// <param name="rectangle"></param>
         /// <returns></returns>
         [DllImport("user32.dll")]
-        public static extern bool GetClientRect(IntPtr hwnd, ref RECT rectangle);
+        public static extern bool GetClientRect(IntPtr hwnd, ref Rectangle rectangle);
 
         /// <summary>
         /// The ClientToScreen function converts the client-area coordinates of a specified point to screen coordinates.
@@ -666,7 +610,7 @@ namespace Cave.Windows
         /// <param name="pbKeyState"></param>
         /// <returns></returns>
         [DllImport("user32")]
-        public static extern int GetKeyboardState(byte[] pbKeyState);
+        public static extern ErrorCode GetKeyboardState(byte[] pbKeyState);
 
         /// <summary>
         /// retrieves the status of the specified virtual key
@@ -688,7 +632,7 @@ namespace Cave.Windows
         /// [in] Pointer to a null-terminated string that specifies the window name (the window's title). If this parameter is NULL, all window names match.
         /// </param>
         /// <returns></returns>
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
 
         /// <summary>
@@ -712,7 +656,7 @@ namespace Cave.Windows
         /// [in] Pointer to a null-terminated string that specifies the window name (the window's title). If this parameter is NULL, all window names match.
         /// </param>
         /// <returns></returns>
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         public static extern IntPtr FindWindowEx(IntPtr hWndParent, IntPtr hWndChildAfter, string lpClassName, string lpWindowName);
 
         /// <summary>
@@ -802,7 +746,7 @@ namespace Cave.Windows
         {
             public string ClassName;
             public string Caption;
-            public List<CONTROL> Results = new List<CONTROL>();
+            public List<CONTROL> Results = new();
 
             public FindWindowHelper(string className, string caption)
             {
@@ -814,24 +758,19 @@ namespace Cave.Windows
             {
                 if (Caption != null)
                 {
-                    StringBuilder caption = new StringBuilder(255);
-                    GetWindowText(hWnd, caption, 255);
+                    var caption = CONTROL.GetWindowText(hWnd);
                     if (caption.ToString() != Caption) return true;
                 }
                 if (ClassName != null)
                 {
-                    StringBuilder className = new StringBuilder(255);
-                    GetClassName(hWnd, className, 255);
+                    var className = CONTROL.GetClassName(hWnd);
                     if (className.ToString() != ClassName) return true;
                 }
                 Results.Add(new CONTROL(hWnd));
                 return true;
             }
 
-            public void FindWindow(IntPtr parent)
-            {
-                EnumChildWindows(parent, new EnumWindowsDelegate(m_CheckWindow), IntPtr.Zero);
-            }
+            public void FindWindow(IntPtr parent) => EnumChildWindows(parent, new EnumWindowsDelegate(m_CheckWindow), IntPtr.Zero);
         }
 
         /// <summary>
@@ -844,9 +783,9 @@ namespace Cave.Windows
         /// <returns></returns>
         public static CONTROL[] FindWindows(IntPtr hWndParent, string className, string caption)
         {
-            FindWindowHelper l_Helper = new FindWindowHelper(className, caption);
-            l_Helper.FindWindow(hWndParent);
-            return l_Helper.Results.ToArray();
+            var helper = new FindWindowHelper(className, caption);
+            helper.FindWindow(hWndParent);
+            return helper.Results.ToArray();
         }
 
         /// <summary>
@@ -859,20 +798,18 @@ namespace Cave.Windows
         public static void SendKeyPress(IntPtr hWndTarget, VK virtualKey, int scanCode, int duration)
         {
             //repeat one time
-            int l_LParam = 0;
+            var lParam = 0;
             //scan code
-            l_LParam += (scanCode << 16);
+            lParam += (scanCode << 16);
             //post message
-            PostMessage(hWndTarget, (uint)WM.KEYDOWN, (IntPtr)virtualKey, new IntPtr(l_LParam));
+            PostMessage(hWndTarget, (uint)WM.KEYDOWN, (IntPtr)virtualKey, new IntPtr(lParam));
             //wait
             if (duration > 0) Thread.Sleep(duration);
             //release key that was down before
-            l_LParam |= 0x03 << 30;
+            lParam |= 0x03 << 30;
             //post message
-            PostMessage(hWndTarget, (uint)WM.KEYUP, (IntPtr)virtualKey, new IntPtr(l_LParam));
+            PostMessage(hWndTarget, (uint)WM.KEYUP, (IntPtr)virtualKey, new IntPtr(lParam));
         }
         #endregion
     }
 }
-
-#endif

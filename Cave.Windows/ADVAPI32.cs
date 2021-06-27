@@ -1,67 +1,3 @@
-#region CopyRight 2018
-/*
-    Copyright (c) 2003-2018 Andreas Rohleder (andreas@rohleder.cc)
-    All rights reserved
-*/
-#endregion
-#region License MSPL
-/*
-    This file contains some sourcecode that uses Microsoft Windows API calls
-    to provide functionality that is part of the underlying operating system.
-    The API calls and their documentation are copyrighted work of Microsoft
-    and/or its suppliers. Use of the Software is governed by the terms of the
-    MICROSOFT LIMITED PUBLIC LICENSE.
-
-    You may not use this program/library/sourcecode except in compliance
-    with the License. The License is included in the LICENSE.MSPL file
-    found at the installation directory or the distribution package.
-*/
-#endregion
-#region License LGPL-3
-/*
-    This program/library/sourcecode is free software; you can redistribute it
-    and/or modify it under the terms of the GNU Lesser General Public License
-    version 3 as published by the Free Software Foundation subsequent called
-    the License.
-
-    You may not use this program/library/sourcecode except in compliance
-    with the License. The License is included in the LICENSE file
-    found at the installation directory or the distribution package.
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    "Software"), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be included
-    in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
-#endregion License
-#region Authors & Contributors
-/*
-   Information source:
-     Microsoft Corporation
-
-   Implementation:
-     Andreas Rohleder <andreas@rohleder.cc>
-
-   Contributors:
- */
-#endregion
-
-#if !NETSTANDARD20
-
 using Microsoft.Win32;
 using System;
 using System.Diagnostics;
@@ -138,15 +74,15 @@ namespace Cave.Windows
             /// <param name="hExistingToken">A handle to an access token opened with TOKEN_DUPLICATE access.</param>
             /// <param name="dwDesiredAccess">Specifies the requested access rights for the new token. The DuplicateTokenEx function compares the requested access rights with the existing token's discretionary access control list (DACL) to determine which rights are granted or denied. To request the same access rights as the existing token, specify zero. To request all access rights that are valid for the caller, specify MAXIMUM_ALLOWED.</param>
             /// <param name="lpThreadAttributes">A pointer to a SECURITY_ATTRIBUTES structure that specifies a security descriptor for the new token and determines whether child processes can inherit the token. If lpTokenAttributes is NULL, the token gets a default security descriptor and the handle cannot be inherited. If the security descriptor contains a system access control list (SACL), the token gets ACCESS_SYSTEM_SECURITY access right, even if it was not requested in dwDesiredAccess.</param>
-            /// <param name="ImpersonationLevel">Specifies a value from the SECURITY_IMPERSONATION_LEVEL enumeration that indicates the impersonation level of the new token.</param>
+            /// <param name="impersonationLevel">Specifies a value from the SECURITY_IMPERSONATION_LEVEL enumeration that indicates the impersonation level of the new token.</param>
             /// <param name="dwTokenType">Specifies one of the following values from the TOKEN_TYPE enumeration.</param>
             /// <param name="phNewToken"></param>
             /// <returns></returns>
             [DllImport("advapi32.dll", EntryPoint = "DuplicateTokenEx", SetLastError = true)]
-            internal static extern bool DuplicateTokenEx(IntPtr hExistingToken, ACCESS dwDesiredAccess, ref SECURITY_ATTRIBUTES lpThreadAttributes, SECURITY_IMPERSONATION_LEVEL ImpersonationLevel, TOKEN_TYPE dwTokenType, out IntPtr phNewToken);
+            internal static extern bool DuplicateTokenEx(IntPtr hExistingToken, ACCESS dwDesiredAccess, ref SECURITY_ATTRIBUTES lpThreadAttributes, SECURITY_IMPERSONATION_LEVEL impersonationLevel, TOKEN_TYPE dwTokenType, out IntPtr phNewToken);
 
             [DllImport("advapi32.dll", SetLastError = true)]
-            internal static extern bool OpenProcessToken(IntPtr ProcessHandle, uint DesiredAccess, out IntPtr TokenHandle);
+            internal static extern bool OpenProcessToken(IntPtr processHandle, uint desiredAccess, out IntPtr tokenHandle);
             #endregion
         }
 
@@ -167,10 +103,10 @@ namespace Cave.Windows
         /// </summary>
         void OnRegKeyChanged()
         {
-            EventHandler<RegKeyChangedEventArgs> handler = RegKeyChanged;
+            var handler = RegKeyChanged;
             if (handler != null)
             {
-                handler.Invoke(this, new RegKeyChangedEventArgs(m_Key.CreateSubKey("")));
+                handler.Invoke(this, new RegKeyChangedEventArgs(Key.CreateSubKey("")));
             }
         }
 
@@ -180,7 +116,7 @@ namespace Cave.Windows
         /// <param name="ex"></param>
         void OnError(Exception ex)
         {
-            EventHandler<ErrorEventArgs> handler = ErrorOccured;
+            var handler = ErrorOccured;
             if (handler != null) handler.Invoke(this, new ErrorEventArgs(ex));
         }
 
@@ -188,13 +124,13 @@ namespace Cave.Windows
 
         #region private member variables
 
-        RegistryKey m_Key;
-        IntPtr m_Hive;
-        string m_Path;
-        volatile bool m_Monitoring = false;
-        bool m_Disposed = false;
-        REG_NOTIFY m_Filter = REG_NOTIFY.CHANGE_NAME | REG_NOTIFY.CHANGE_ATTRIBUTES | REG_NOTIFY.CHANGE_LAST_SET | REG_NOTIFY.CHANGE_SECURITY;
-        ManualResetEvent m_TerminateEvent = new ManualResetEvent(false);
+        readonly RegistryKey Key;
+        readonly IntPtr Hive;
+        readonly string Path;
+        volatile bool monitoring = false;
+        bool disposed = false;
+        REG_NOTIFY filter = REG_NOTIFY.CHANGE_NAME | REG_NOTIFY.CHANGE_ATTRIBUTES | REG_NOTIFY.CHANGE_LAST_SET | REG_NOTIFY.CHANGE_SECURITY;
+        ManualResetEvent terminateEvent = new(false);
 
         #endregion
 
@@ -207,44 +143,43 @@ namespace Cave.Windows
         /// <param name="sessionID"></param>
         public static PROCESS_INFORMATION LaunchProcessAsUser(string fileName, string args, int sessionID)
         {
-            int mySessionID = Process.GetCurrentProcess().SessionId;
+            var mySessionID = Process.GetCurrentProcess().SessionId;
             sessionID = (sessionID > 0) ? sessionID : KERNEL32.SafeNativeMethods.WTSGetActiveConsoleSessionId();
 
             if (mySessionID == sessionID)
             {
-                PROCESS_INFORMATION result = new PROCESS_INFORMATION();
-                Process l_Process = Process.Start(fileName, args);
-                result.dwProcessId = l_Process.Id;
-                result.hProcess = l_Process.Handle;
+                var result = new PROCESS_INFORMATION();
+                var process = Process.Start(fileName, args);
+                result.dwProcessId = process.Id;
+                result.hProcess = process.Handle;
                 return result;
             }
             if (sessionID <= 0) throw new Exception("Invalid session!");
             //get users token
-            IntPtr userToken;
-            if (!WTSAPI32.WTSQueryUserToken(sessionID, out userToken))
+            if (!WTSAPI32.WTSQueryUserToken(sessionID, out var userToken))
             {
                 throw new Win32ErrorException();
             }
-            IntPtr newToken = IntPtr.Zero;
-            SECURITY_ATTRIBUTES l_Security = new SECURITY_ATTRIBUTES();
+
+            var security = new SECURITY_ATTRIBUTES();
+            IntPtr newToken;
             {
-                l_Security.nLength = Marshal.SizeOf(l_Security);
-                l_Security.bInheritHandle = false;
-                l_Security.lpSecurityDescriptor = IntPtr.Zero;
+                security.nLength = Marshal.SizeOf(security);
+                security.bInheritHandle = false;
+                security.lpSecurityDescriptor = IntPtr.Zero;
                 //copy token and
-                bool result = UnsafeNativeMethods.DuplicateTokenEx(userToken, ACCESS.TOKEN_ASSIGN_PRIMARY | ACCESS.TOKEN_DUPLICATE | ACCESS.TOKEN_QUERY, ref l_Security, SECURITY_IMPERSONATION_LEVEL.SecurityIdentification, TOKEN_TYPE.TokenPrimary, out newToken);
-                KERNEL32.SafeNativeMethods.CloseHandle(userToken);
+                var result = UnsafeNativeMethods.DuplicateTokenEx(userToken, ACCESS.TOKEN_ASSIGN_PRIMARY | ACCESS.TOKEN_DUPLICATE | ACCESS.TOKEN_QUERY, ref security, SECURITY_IMPERSONATION_LEVEL.SecurityIdentification, TOKEN_TYPE.TokenPrimary, out newToken);
+                KERNEL32.SafeNativeMethods.CloseHandle(userToken).ThrowOnError();
                 if (!result) throw new Win32ErrorException();
             }
 
             {
-                PROCESS_INFORMATION l_Process = new PROCESS_INFORMATION();
-                STARTUPINFO startInfo = new STARTUPINFO();
-                string command = '"' + fileName + '"' + ' ' + args;
-                bool result = UnsafeNativeMethods.CreateProcessAsUser(newToken, null, command, ref l_Security, ref l_Security, false, 0, IntPtr.Zero, null, ref startInfo, out l_Process);
+                var startInfo = new STARTUPINFO();
+                var command = '"' + fileName + '"' + ' ' + args;
+                var result = UnsafeNativeMethods.CreateProcessAsUser(newToken, null, command, ref security, ref security, false, 0, IntPtr.Zero, null, ref startInfo, out var process);
                 KERNEL32.SafeNativeMethods.CloseHandle(newToken);
                 if (!result) throw new Win32ErrorException();
-                return l_Process;
+                return process;
             }
         }
 
@@ -263,11 +198,11 @@ namespace Cave.Windows
         /// <param name="path">The path to monitor</param>
         public ADVAPI32(string path)
         {
-            if ((path == null) || (path.Length == 0)) throw new ArgumentNullException("Path");
-            string l_Root = Path.GetPathRoot(path);
-            m_Hive = new IntPtr((int)REGISTRY.GetHiveHandle(l_Root));
-            m_Path = path.Substring(l_Root.Length);
-            m_Key = REGISTRY.GetKey(path, false);
+            if ((path == null) || (path.Length == 0)) throw new ArgumentNullException(nameof(path));
+            var root = System.IO.Path.GetPathRoot(path);
+            Hive = new IntPtr((int)REGISTRY.GetHiveHandle(root));
+            Path = path.Substring(root.Length);
+            Key = REGISTRY.GetKey(path, false);
        }
 
         /// <summary>
@@ -275,13 +210,15 @@ namespace Cave.Windows
         /// </summary>
         public void Dispose()
         {
-            if (m_TerminateEvent != null)
+            if (disposed) return;
+            if (terminateEvent != null)
             {
                 Stop();
-                m_Key.Close();
-                (m_TerminateEvent as IDisposable)?.Dispose();
-                m_TerminateEvent = null;
+                Key.Close();
+                (terminateEvent as IDisposable)?.Dispose();
+                terminateEvent = null;
             }
+            disposed = true;
         }
 
         /// <summary>
@@ -289,13 +226,13 @@ namespace Cave.Windows
         /// </summary>
         public REG_NOTIFY NotifyFilter
         {
-            get { return m_Filter; }
+            get => filter;
             set
             {
                 lock (this)
                 {
                     if (IsMonitoring) throw new InvalidOperationException(string.Format("Monitorthread is already running!"));
-                    m_Filter = value;
+                    filter = value;
                 }
             }
         }
@@ -304,22 +241,19 @@ namespace Cave.Windows
         /// <b>true</b> if this <see cref="ADVAPI32"/> object is currently monitoring;
         /// otherwise, <b>false</b>.
         /// </summary>
-        public bool IsMonitoring
-        {
-            get { return m_Monitoring; }
-        }
+        public bool IsMonitoring => monitoring;
 
         /// <summary>
         /// Start monitoring.
         /// </summary>
         public void Start()
         {
-            if (m_Disposed) throw new ObjectDisposedException(null, string.Format("This instance is already disposed"));
+            if (disposed) throw new ObjectDisposedException(null, string.Format("This instance is already disposed"));
             lock (this)
             {
-                if (m_Monitoring) throw new InvalidOperationException(string.Format("Monitorthread is already running!"));
-                m_TerminateEvent.Reset();
-                m_Monitoring = true;
+                if (monitoring) throw new InvalidOperationException(string.Format("Monitorthread is already running!"));
+                terminateEvent.Reset();
+                monitoring = true;
                 Task.Factory.StartNew(Worker);
             }
         }
@@ -329,12 +263,12 @@ namespace Cave.Windows
         /// </summary>
         public void Stop()
         {
-            if (m_Disposed) throw new ObjectDisposedException(null, string.Format("This instance is already disposed"));
+            if (disposed) throw new ObjectDisposedException(null, string.Format("This instance is already disposed"));
             lock (this)
             {
-                if (!m_Monitoring) throw new InvalidOperationException(string.Format("Monitorthread is not running!"));
-                m_TerminateEvent.Set();
-                m_Monitoring = false;
+                if (!monitoring) throw new InvalidOperationException(string.Format("Monitorthread is not running!"));
+                terminateEvent.Set();
+                monitoring = false;
             }
         }
         #endregion
@@ -344,22 +278,21 @@ namespace Cave.Windows
         {
             try
             {
-                IntPtr keyHandle;
-                int access = unchecked((int)ACCESS.STANDARD_RIGHTS_READ | (int)ACCESS_REGISTRY.KEY_QUERY_VALUE | (int)ACCESS_REGISTRY.KEY_NOTIFY);
-                ErrorCode result = UnsafeNativeMethods.RegOpenKeyEx(m_Hive, m_Path, 0, access, out keyHandle);
+                var access = unchecked((int)ACCESS.STANDARD_RIGHTS_READ | (int)ACCESS_REGISTRY.KEY_QUERY_VALUE | (int)ACCESS_REGISTRY.KEY_NOTIFY);
+                var result = UnsafeNativeMethods.RegOpenKeyEx(Hive, Path, 0, access, out var keyHandle);
                 if (result != ErrorCode.SUCCESS) throw new Win32ErrorException(result);
 
                 try
                 {
-                    AutoResetEvent l_NotifyEvent = new AutoResetEvent(false);
-                    WaitHandle[] l_WaitHandles = new WaitHandle[] { l_NotifyEvent, m_TerminateEvent };
-                    while (!m_TerminateEvent.WaitOne(0, true))
+                    var notifyEvent = new AutoResetEvent(false);
+                    var waitHandles = new WaitHandle[] { notifyEvent, terminateEvent };
+                    while (!terminateEvent.WaitOne(0, true))
                     {
 #pragma warning disable 618
-                        result = UnsafeNativeMethods.RegNotifyChangeKeyValue(keyHandle, true, m_Filter, l_NotifyEvent.Handle, true);
+                        result = UnsafeNativeMethods.RegNotifyChangeKeyValue(keyHandle, true, filter, notifyEvent.Handle, true);
 #pragma warning restore 618
                         if (result != 0) throw new Win32ErrorException(result);
-                        if (WaitHandle.WaitAny(l_WaitHandles) == 0)
+                        if (WaitHandle.WaitAny(waitHandles) == 0)
                         {
                             OnRegKeyChanged();
                         }
@@ -372,7 +305,7 @@ namespace Cave.Windows
                         UnsafeNativeMethods.RegCloseKey(keyHandle);
                         keyHandle = IntPtr.Zero;
                     }
-                    m_Monitoring = false;
+                    monitoring = false;
                 }
             }
             catch (Exception e)
@@ -383,4 +316,3 @@ namespace Cave.Windows
         #endregion
     }
 }
-#endif

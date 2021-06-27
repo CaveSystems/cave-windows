@@ -1,70 +1,10 @@
-#region CopyRight 2018
-/*
-    Copyright (c) 2003-2018 Andreas Rohleder (andreas@rohleder.cc)
-    All rights reserved
-*/
-#endregion
-#region License MSPL
-/*
-    This file contains some sourcecode that uses Microsoft Windows API calls
-    to provide functionality that is part of the underlying operating system.
-    The API calls and their documentation are copyrighted work of Microsoft
-    and/or its suppliers. Use of the Software is governed by the terms of the
-    MICROSOFT LIMITED PUBLIC LICENSE.
-
-    You may not use this program/library/sourcecode except in compliance
-    with the License. The License is included in the LICENSE.MSPL file
-    found at the installation directory or the distribution package.
-*/
-#endregion
-#region License LGPL-3
-/*
-    This program/library/sourcecode is free software; you can redistribute it
-    and/or modify it under the terms of the GNU Lesser General Public License
-    version 3 as published by the Free Software Foundation subsequent called
-    the License.
-
-    You may not use this program/library/sourcecode except in compliance
-    with the License. The License is included in the LICENSE file
-    found at the installation directory or the distribution package.
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    "Software"), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be included
-    in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
-#endregion License
-#region Authors & Contributors
-/*
-   Information source:
-     Microsoft Corporation
-
-   Implementation:
-     Andreas Rohleder <andreas@rohleder.cc>
-
-   Contributors:
- */
-#endregion
-
 using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Text;
 
 namespace Cave.Windows
@@ -72,6 +12,8 @@ namespace Cave.Windows
     /// <summary>
     /// provides an interface to the windows kernel32.dll
     /// </summary>
+    [SuppressUnmanagedCodeSecurity]
+    [SuppressMessage("Interoperability", "CA1401")]
     public static class KERNEL32
     {
         /// <summary>
@@ -100,11 +42,8 @@ namespace Cave.Windows
         /// <returns>Idle, Kernel and User times</returns>
         public unsafe static SYSTEMTIMES GetSystemTimes()
         {
-            long l_Idle;
-            long l_User;
-            long l_Kernel;
-            if (!SafeNativeMethods.GetSystemTimes(out l_Idle, out l_User, out l_Kernel)) throw new NotSupportedException();
-            return new SYSTEMTIMES(new TimeSpan(l_Idle), new TimeSpan(l_User), new TimeSpan(l_Kernel));
+            if (!SafeNativeMethods.GetSystemTimes(out var idle, out var user, out var kernel)) throw new NotSupportedException();
+            return new SYSTEMTIMES(new TimeSpan(idle), new TimeSpan(user), new TimeSpan(kernel));
         }
 
         /// <summary>
@@ -118,22 +57,14 @@ namespace Cave.Windows
         /// <returns></returns>
         public static SafeFileHandle CreateFileHandle(string fileName, FileAccess fileAccess, FileShare shareMode, DISPOSITION creationDisposition, FILE_FLAG flagsAndAttributes)
         {
-            ACCESS access;
-            switch (fileAccess)
+            var access = fileAccess switch
             {
-                case FileAccess.Read:
-                    access = ACCESS.FILE_GENERIC_READ;
-                    break;
-                case FileAccess.Write:
-                    access = ACCESS.FILE_GENERIC_WRITE;
-                    break;
-                case FileAccess.ReadWrite:
-                default:
-                    access = ACCESS.FILE_GENERIC_READ | ACCESS.FILE_GENERIC_WRITE;
-                    break;
-            }
-            IntPtr ptr = SafeNativeMethods.CreateFile(fileName, access, shareMode, IntPtr.Zero, creationDisposition, flagsAndAttributes, IntPtr.Zero);
-            SafeFileHandle handle = new SafeFileHandle(ptr, true);
+                FileAccess.Read => ACCESS.FILE_GENERIC_READ,
+                FileAccess.Write => ACCESS.FILE_GENERIC_WRITE,
+                _ => ACCESS.FILE_GENERIC_READ | ACCESS.FILE_GENERIC_WRITE,
+            };
+            var ptr = SafeNativeMethods.CreateFile(fileName, access, shareMode, IntPtr.Zero, creationDisposition, flagsAndAttributes, IntPtr.Zero);
+            var handle = new SafeFileHandle(ptr, true);
             CheckLastError(183);
             if (handle.IsInvalid) throw new Win32ErrorException();
             return handle;
@@ -148,10 +79,7 @@ namespace Cave.Windows
         /// <param name="creationDisposition">An action to take on a file or device that exists or does not exist. For devices other than files, this parameter is usually set to OPEN_EXISTING.</param>
         /// <param name="flagsAndAttributes">The file or device attributes and flags, FILE_ATTRIBUTE_NORMAL being the most common default value for files. This parameter can include any combination of the available file attributes (FILE_ATTRIBUTE_*). All other file attributes override FILE_ATTRIBUTE_NORMAL.</param>
         /// <returns></returns>
-        public static FileStream CreateFile(string fileName, FileAccess fileAccess, FileShare shareMode, DISPOSITION creationDisposition, FILE_FLAG flagsAndAttributes)
-        {
-            return new FileStream(CreateFileHandle(fileName, fileAccess, shareMode, creationDisposition, flagsAndAttributes), fileAccess);
-        }
+        public static FileStream CreateFile(string fileName, FileAccess fileAccess, FileShare shareMode, DISPOSITION creationDisposition, FILE_FLAG flagsAndAttributes) => new(CreateFileHandle(fileName, fileAccess, shareMode, creationDisposition, flagsAndAttributes), fileAccess);
 
         /// <summary>
         /// Obtains all available volumes
@@ -159,22 +87,22 @@ namespace Cave.Windows
         /// <returns></returns>
         public static string[] GetVolumes()
         {
-            List<string> result = new List<string>();
-            StringBuilder buffer = new StringBuilder(DefaultStructBufferSize);
-            IntPtr handle = SafeNativeMethods.FindFirstVolume(buffer, DefaultStructBufferSize);
-            int l_ErrorCode = Marshal.GetLastWin32Error();
-            switch (l_ErrorCode)
+            var result = new List<string>();
+            var buffer = new StringBuilder(DefaultStructBufferSize);
+            var handle = SafeNativeMethods.FindFirstVolume(buffer, DefaultStructBufferSize);
+            var errorCode = Marshal.GetLastWin32Error();
+            switch (errorCode)
             {
                 case 18:
                 case 234: break;
-                default: throw new Win32ErrorException((ErrorCode)l_ErrorCode);
+                default: throw new Win32ErrorException((ErrorCode)errorCode);
             }
-            bool l_Good = handle.ToInt64() > -1;
-            while (l_Good)
+            var good = handle.ToInt64() > -1;
+            while (good)
             {
-                string str = buffer.ToString();
+                var str = buffer.ToString();
                 result.Add(str);
-                l_Good = SafeNativeMethods.FindNextVolume(handle, buffer, DefaultStructBufferSize);
+                good = SafeNativeMethods.FindNextVolume(handle, buffer, DefaultStructBufferSize);
             }
             SafeNativeMethods.FindVolumeClose(handle);
             return result.ToArray();
@@ -187,22 +115,22 @@ namespace Cave.Windows
         /// <returns></returns>
         public static string[] GetMountPoints(string volume)
         {
-            List<string> result = new List<string>();
-            StringBuilder buffer = new StringBuilder(DefaultStructBufferSize);
-            IntPtr handle = SafeNativeMethods.FindFirstVolumeMountPoint(volume, buffer, DefaultStructBufferSize);
-            int l_ErrorCode = Marshal.GetLastWin32Error();
-            switch (l_ErrorCode)
+            var result = new List<string>();
+            var buffer = new StringBuilder(DefaultStructBufferSize);
+            var handle = SafeNativeMethods.FindFirstVolumeMountPoint(volume, buffer, DefaultStructBufferSize);
+            var errorCode = Marshal.GetLastWin32Error();
+            switch (errorCode)
             {
                 case 18:
                 case 234: break;
-                default: throw new Win32ErrorException(l_ErrorCode);
+                default: throw new Win32ErrorException(errorCode);
             }
-            bool l_Good = handle.ToInt64() > -1;
-            while (l_Good)
+            var good = handle.ToInt64() > -1;
+            while (good)
             {
-                string str = buffer.ToString();
+                var str = buffer.ToString();
                 result.Add(str);
-                l_Good = SafeNativeMethods.FindNextVolumeMountPoint(handle, buffer, DefaultStructBufferSize);
+                good = SafeNativeMethods.FindNextVolumeMountPoint(handle, buffer, DefaultStructBufferSize);
             }
             SafeNativeMethods.FindVolumeMountPointClose(handle);
             return result.ToArray();
@@ -214,27 +142,27 @@ namespace Cave.Windows
         /// <returns>Returns a list of all existing MS-DOS device names.</returns>
         public static string[] QueryDosDevices()
         {
-            int bufferSize = DefaultStructBufferSize;
-            IntPtr buffer = Marshal.AllocHGlobal(bufferSize);
-            int size = 0;
+            var bufferSize = DefaultStructBufferSize;
+            var buffer = Marshal.AllocHGlobal(bufferSize);
+            int size;
             while (true)
             {
                 size = SafeNativeMethods.QueryDosDevice(null, buffer, bufferSize);
                 if (size == 0)
                 {
-                    int l_ErrorCode = Marshal.GetLastWin32Error();
-                    if (l_ErrorCode == 0x7A)
+                    var errorCode = Marshal.GetLastWin32Error();
+                    if (errorCode == 0x7A)
                     {//buffer too small
                         Marshal.FreeHGlobal(buffer);
                         bufferSize *= 16;
                         buffer = Marshal.AllocHGlobal(bufferSize);
                         continue;
                     }
-                    throw new Win32ErrorException(l_ErrorCode);
+                    throw new Win32ErrorException(errorCode);
                 }
                 break;
             }
-            string data = Marshal.PtrToStringAuto(buffer, size);
+            var data = Marshal.PtrToStringAuto(buffer, size);
             Marshal.FreeHGlobal(buffer);
             return data.Split(new char[] { '\0' }, StringSplitOptions.RemoveEmptyEntries);
         }
@@ -246,27 +174,27 @@ namespace Cave.Windows
         /// <returns></returns>
         public static string[] GetVolumePathNames(string volume)
         {
-            int bufferSize = DefaultStructBufferSize;
-            IntPtr buffer = Marshal.AllocHGlobal(bufferSize);
-            int size = 0;
+            var bufferSize = DefaultStructBufferSize;
+            var buffer = Marshal.AllocHGlobal(bufferSize);
+            var size = 0;
             while (true)
             {
                 SafeNativeMethods.GetVolumePathNamesForVolumeName(volume, buffer, bufferSize, ref size);
                 if (size == 0)
                 {
-                    int l_ErrorCode = Marshal.GetLastWin32Error();
-                    if (l_ErrorCode == 0x7A)
+                    var errorCode = Marshal.GetLastWin32Error();
+                    if (errorCode == 0x7A)
                     {//buffer too small
                         Marshal.FreeHGlobal(buffer);
                         bufferSize *= 16;
                         buffer = Marshal.AllocHGlobal(bufferSize);
                         continue;
                     }
-                    throw new Win32ErrorException(l_ErrorCode);
+                    throw new Win32ErrorException(errorCode);
                 }
                 break;
             }
-            string data = Marshal.PtrToStringAuto(buffer, size);
+            var data = Marshal.PtrToStringAuto(buffer, size);
             Marshal.FreeHGlobal(buffer);
             return data.Split(new char[] { '\0' }, StringSplitOptions.RemoveEmptyEntries);
         }
@@ -276,9 +204,9 @@ namespace Cave.Windows
         /// </summary>
         public static void CheckLastError()
         {
-            ErrorCode l_LastError = (ErrorCode)Marshal.GetLastWin32Error();
-            if (l_LastError == ErrorCode.SUCCESS) return;
-            throw new Win32ErrorException(l_LastError);
+            var lastError = (ErrorCode)Marshal.GetLastWin32Error();
+            if (lastError == ErrorCode.SUCCESS) return;
+            throw new Win32ErrorException(lastError);
         }
 
         /// <summary>
@@ -287,10 +215,10 @@ namespace Cave.Windows
         /// <param name="validErrors"></param>
         public static void CheckLastError(params int[] validErrors)
         {
-            int l_LastError = Marshal.GetLastWin32Error();
-            if (l_LastError == (int)ErrorCode.SUCCESS) return;
-            if (Array.IndexOf(validErrors, l_LastError) >= 0) return;
-            throw new Win32ErrorException(l_LastError);
+            var lastError = Marshal.GetLastWin32Error();
+            if (lastError == (int)ErrorCode.SUCCESS) return;
+            if (Array.IndexOf(validErrors, lastError) >= 0) return;
+            throw new Win32ErrorException(lastError);
         }
 
         /// <summary>
@@ -300,7 +228,7 @@ namespace Cave.Windows
         /// <exception cref="Win32ErrorException"></exception>
         public static MEMORYSTATUSEX GlobalMemoryStatusEx()
         {
-            MEMORYSTATUSEX result = new MEMORYSTATUSEX();
+            var result = new MEMORYSTATUSEX();
             result.SetLength();
             if (!SafeNativeMethods.GlobalMemoryStatusEx(ref result)) throw new Win32ErrorException();
             return result;
@@ -314,14 +242,14 @@ namespace Cave.Windows
         {
             SafeNativeMethods.AllocConsole();
             {
-                IntPtr defaultStdout = SafeNativeMethods.CreateFile("CONOUT$", ACCESS.GENERIC_READ | ACCESS.GENERIC_WRITE, FileShare.ReadWrite, IntPtr.Zero, DISPOSITION.OPEN_EXISTING, 0, IntPtr.Zero);
-                IntPtr currentStdout = SafeNativeMethods.GetStdHandle(STD_HANDLE.OUTPUT);
+                var defaultStdout = SafeNativeMethods.CreateFile("CONOUT$", ACCESS.GENERIC_READ | ACCESS.GENERIC_WRITE, FileShare.ReadWrite, IntPtr.Zero, DISPOSITION.OPEN_EXISTING, 0, IntPtr.Zero);
+                var currentStdout = SafeNativeMethods.GetStdHandle(STD_HANDLE.OUTPUT);
                 if (currentStdout != defaultStdout) SafeNativeMethods.SetStdHandle(STD_HANDLE.OUTPUT, defaultStdout);
                 System.Console.SetOut(new StreamWriter(System.Console.OpenStandardOutput()) { AutoFlush = true });
             }
             {
-                IntPtr defaultStdin = SafeNativeMethods.CreateFile("CONIN$", ACCESS.GENERIC_READ | ACCESS.GENERIC_WRITE, FileShare.ReadWrite, IntPtr.Zero, DISPOSITION.OPEN_EXISTING, 0, IntPtr.Zero);
-                IntPtr currentStdin = SafeNativeMethods.GetStdHandle(STD_HANDLE.INPUT);
+                var defaultStdin = SafeNativeMethods.CreateFile("CONIN$", ACCESS.GENERIC_READ | ACCESS.GENERIC_WRITE, FileShare.ReadWrite, IntPtr.Zero, DISPOSITION.OPEN_EXISTING, 0, IntPtr.Zero);
+                var currentStdin = SafeNativeMethods.GetStdHandle(STD_HANDLE.INPUT);
                 if (currentStdin != defaultStdin) SafeNativeMethods.SetStdHandle(STD_HANDLE.INPUT, defaultStdin);
                 System.Console.SetIn(new StreamReader(System.Console.OpenStandardInput()));
             }
@@ -370,7 +298,7 @@ namespace Cave.Windows
             /// <param name="lpPathName">The path to the new current directory. This parameter may specify a relative path or a full path. In either case, the full path of the specified directory is calculated and stored as the current directory. </param>
             /// <returns></returns>
             [DllImport("kernel32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true, CharSet = CharSet.Unicode)]
-            public static extern bool SetCurrentDirectory([MarshalAs(UnmanagedType.LPTStr)]string lpPathName);
+            public static extern bool SetCurrentDirectory([MarshalAs(UnmanagedType.LPWStr)]string lpPathName);
 
             /// <summary>
             /// Sets the date and time that the specified file or directory was created, last accessed, or last modified.
@@ -390,7 +318,7 @@ namespace Cave.Windows
             /// <param name="dwFileAttributes">The file attributes to set for the file.</param>
             /// <returns>If the function fails, the return value is zero. To get extended error information, call GetLastError.</returns>
             [DllImport(@"kernel32.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode)]
-            public static extern bool SetFileAttributes([MarshalAs(UnmanagedType.LPTStr)]string lpFileName, FileAttributes dwFileAttributes);
+            public static extern bool SetFileAttributes([MarshalAs(UnmanagedType.LPWStr)]string lpFileName, FileAttributes dwFileAttributes);
 
             /// <summary>
             /// Copies an existing file to a new file.
@@ -530,7 +458,7 @@ namespace Cave.Windows
             /// If the function succeeds, the return value is a handle to the module.
             /// If the function fails, the return value is NULL. To get extended error information, call GetLastError.
             /// </returns>
-            [DllImport("Kernel32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true)]
+            [DllImport("Kernel32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true, CharSet = CharSet.Unicode)]
             public static extern IntPtr LoadLibrary(string lpFileName);
 
             /// <summary>
@@ -547,7 +475,7 @@ namespace Cave.Windows
             /// If the function succeeds, the return value is the address of the exported function or variable.
             /// If the function fails, the return value is NULL. To get extended error information, call GetLastError.
             /// </returns>
-            [DllImport("Kernel32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true)]
+            [DllImport("Kernel32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true, CharSet = CharSet.Unicode)]
             public static extern IntPtr GetProcAddress(IntPtr hModule, string procedureName);
 
             /// <summary>
@@ -574,7 +502,7 @@ namespace Cave.Windows
             /// <param name="exeName"></param>
             /// <param name="count"></param>
             /// <returns></returns>
-            [DllImport("Kernel32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true)]
+            [DllImport("Kernel32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true, CharSet = CharSet.Unicode)]
             public static extern bool QueryFullProcessImageName(IntPtr processHandle, int flags, StringBuilder exeName, ref int count);
 
             /// <summary>
@@ -619,7 +547,7 @@ namespace Cave.Windows
             /// <param name="handle">A valid handle to an open object.</param>
             /// <returns></returns>
             [DllImport("Kernel32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true)]
-            public static extern int CloseHandle(IntPtr handle);
+            public static extern ErrorCode CloseHandle(IntPtr handle);
 
             /// <summary>
             /// Retrieves information about a range of pages within the virtual address space of a specified process.
@@ -741,14 +669,14 @@ namespace Cave.Windows
             /// <param name="hTemplateFile">A valid handle to a template file with the GENERIC_READ access right. The template file supplies file attributes and extended attributes for the file that is being created. This parameter can be NULL.</param>
             /// <returns>If the function succeeds, the return value is an open handle to the specified file, device, named pipe, or mail slot. If the function fails, the return value is INVALID_HANDLE_VALUE. To get extended error information, call GetLastError.</returns>
             [DllImport("kernel32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true, CharSet = CharSet.Auto)]
-            public static extern IntPtr CreateFile([MarshalAs(UnmanagedType.LPTStr)]string lpFileName, ACCESS dwDesiredAccess, FileShare dwShareMode, IntPtr pSecurityAttributes, DISPOSITION dwCreationDisposition, FILE_FLAG dwFlagsAndAttributes, IntPtr hTemplateFile);
+            public static extern IntPtr CreateFile([MarshalAs(UnmanagedType.LPWStr)]string lpFileName, ACCESS dwDesiredAccess, FileShare dwShareMode, IntPtr pSecurityAttributes, DISPOSITION dwCreationDisposition, FILE_FLAG dwFlagsAndAttributes, IntPtr hTemplateFile);
 
             /// <summary>Creates a symbolic link.</summary>
             /// <param name="lpSymlinkFileName">The symbolic link to be created.</param>
             /// <param name="lpTargetFileName">The name of the target for the symbolic link to be created.</param>
             /// <param name="dwFlags">Indicates whether the link target, lpTargetFileName, is a directory.</param>
             /// <returns></returns>
-            [DllImport("kernel32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true, CharSet = CharSet.Auto)]
+            [DllImport("kernel32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true, CharSet = CharSet.Unicode)]
             public static extern bool CreateSymbolicLink(string lpSymlinkFileName, string lpTargetFileName, LINKTYPE dwFlags);
 
             /// <summary>
@@ -792,7 +720,7 @@ namespace Cave.Windows
             /// <param name="cchBufferLength">The length of the buffer to receive the volume GUID path, in TCHARs.</param>
             /// <returns>If the function succeeds, the return value is a search handle used in a subsequent call to the FindNextVolume and FindVolumeClose functions.</returns>
             [DllImport("kernel32.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Auto, SetLastError = true)]
-            public static extern IntPtr FindFirstVolume([MarshalAs(UnmanagedType.LPTStr)]StringBuilder lpszVolumeName, int cchBufferLength);
+            public static extern IntPtr FindFirstVolume([MarshalAs(UnmanagedType.LPWStr)]StringBuilder lpszVolumeName, int cchBufferLength);
 
             /// <summary>
             /// Continues a volume search started by a call to the FindFirstVolume function. FindNextVolume finds one volume per call.
@@ -802,7 +730,7 @@ namespace Cave.Windows
             /// <param name="cchBufferLength">The length of the buffer that receives the volume GUID path, in TCHARs.</param>
             /// <returns>If the function succeeds, the return value is nonzero.</returns>
             [DllImport("kernel32.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Auto, SetLastError = true)]
-            public static extern bool FindNextVolume(IntPtr hFindVolume, [MarshalAs(UnmanagedType.LPTStr)]StringBuilder lpszVolumeName, int cchBufferLength);
+            public static extern bool FindNextVolume(IntPtr hFindVolume, [MarshalAs(UnmanagedType.LPWStr)]StringBuilder lpszVolumeName, int cchBufferLength);
 
             /// <summary>
             /// Closes the specified volume search handle. The FindFirstVolume and FindNextVolume functions use this search handle to locate volumes.
@@ -820,7 +748,7 @@ namespace Cave.Windows
             /// <param name="cchBufferLength">The length of the buffer that receives the path to the mounted folder, in TCHARs.</param>
             /// <returns>If the function succeeds, the return value is a search handle used in a subsequent call to the FindNextVolumeMountPoint and FindVolumeMountPointClose functions.</returns>
             [DllImport("kernel32.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Auto, SetLastError = true)]
-            public static extern IntPtr FindFirstVolumeMountPoint([MarshalAs(UnmanagedType.LPTStr)]string lpszRootPathName, [MarshalAs(UnmanagedType.LPTStr)]StringBuilder lpszVolumeMountPoint, int cchBufferLength);
+            public static extern IntPtr FindFirstVolumeMountPoint([MarshalAs(UnmanagedType.LPWStr)]string lpszRootPathName, [MarshalAs(UnmanagedType.LPWStr)]StringBuilder lpszVolumeMountPoint, int cchBufferLength);
 
             /// <summary>
             /// Continues a mounted folder search started by a call to the FindFirstVolumeMountPoint function. FindNextVolumeMountPoint finds one mounted folder per call.
@@ -830,7 +758,7 @@ namespace Cave.Windows
             /// <param name="cchBufferLength">The length of the buffer that receives the mounted folder name, in TCHARs.</param>
             /// <returns>If the function succeeds, the return value is nonzero.</returns>
             [DllImport("kernel32.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Auto, SetLastError = true)]
-            public static extern bool FindNextVolumeMountPoint(IntPtr hFindVolumeMountPoint, [MarshalAs(UnmanagedType.LPTStr)]StringBuilder lpszVolumeMountPoint, int cchBufferLength);
+            public static extern bool FindNextVolumeMountPoint(IntPtr hFindVolumeMountPoint, [MarshalAs(UnmanagedType.LPWStr)]StringBuilder lpszVolumeMountPoint, int cchBufferLength);
 
             /// <summary>
             /// Closes the specified mounted folder search handle. The FindFirstVolumeMountPoint and FindNextVolumeMountPoint functions use this search handle to locate mounted folders on a specified volume.
@@ -854,7 +782,7 @@ namespace Cave.Windows
             /// <param name="ucchMax">The maximum number of TCHARs that can be stored into the buffer pointed to by lpTargetPath.</param>
             /// <returns>If the function succeeds, the return value is the number of TCHARs stored into the buffer pointed to by lpTargetPath.</returns>
             [DllImport("kernel32.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Auto, SetLastError = true)]
-            public static extern int QueryDosDevice([MarshalAs(UnmanagedType.LPTStr)]string lpDeviceName, IntPtr lpTargetPath, int ucchMax);
+            public static extern int QueryDosDevice([MarshalAs(UnmanagedType.LPWStr)]string lpDeviceName, IntPtr lpTargetPath, int ucchMax);
 
             /// <summary>
             /// Retrieves the volume mount point where the specified path is mounted.
@@ -864,7 +792,7 @@ namespace Cave.Windows
             /// <param name="cchBufferLength">The length of the output buffer, in TCHARs.</param>
             /// <returns>If the function succeeds, the return value is nonzero.</returns>
             [DllImport("kernel32.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Auto, SetLastError = true)]
-            public static extern bool GetVolumePathName([MarshalAs(UnmanagedType.LPTStr)]string lpszFileName, [MarshalAs(UnmanagedType.LPTStr)]StringBuilder lpszVolumePathName, int cchBufferLength);
+            public static extern bool GetVolumePathName([MarshalAs(UnmanagedType.LPWStr)]string lpszFileName, [MarshalAs(UnmanagedType.LPWStr)]StringBuilder lpszVolumePathName, int cchBufferLength);
 
             /// <summary>
             /// Retrieves a list of drive letters and mounted folder paths for the specified volume.
@@ -875,7 +803,7 @@ namespace Cave.Windows
             /// <param name="lpcchReturnLength">If the call is successful, this parameter is the number of TCHARs copied to the lpszVolumePathNames buffer. Otherwise, this parameter is the size of the buffer required to hold the complete list, in TCHARs.</param>
             /// <returns>If the function succeeds, the return value is nonzero.</returns>
             [DllImport("kernel32.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Auto, SetLastError = true)]
-            public static extern bool GetVolumePathNamesForVolumeName([MarshalAs(UnmanagedType.LPTStr)]string lpszVolumeName, IntPtr lpszVolumePathNames, int cchBufferLength, ref int lpcchReturnLength);
+            public static extern bool GetVolumePathNamesForVolumeName([MarshalAs(UnmanagedType.LPWStr)]string lpszVolumeName, IntPtr lpszVolumePathNames, int cchBufferLength, ref int lpcchReturnLength);
 
             /// <summary>
             /// Formats a message string. The function requires a message definition as input. The message definition can come from a buffer passed into the function. It can come from a message table resource in an already-loaded module. Or the caller can ask the function to search the system's message table resource(s) for the message definition. The function finds the message definition in a message table resource based on a message identifier and a language identifier. The function copies the formatted message text to an output buffer, processing any embedded insert sequences if requested.
@@ -888,7 +816,7 @@ namespace Cave.Windows
             /// <param name="nSize">If the FORMAT_MESSAGE_ALLOCATE_BUFFER flag is not set, this parameter specifies the size of the output buffer, in TCHARs. If FORMAT_MESSAGE_ALLOCATE_BUFFER is set, this parameter specifies the minimum number of TCHARs to allocate for an output buffer.</param>
             /// <param name="args">An array of values that are used as insert values in the formatted message. A %1 in the format string indicates the first value in the Arguments array; a %2 indicates the second argument; and so on.</param>
             /// <returns></returns>
-            [DllImport(@"kernel32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true, CharSet = CharSet.Auto)]
+            [DllImport(@"kernel32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true, CharSet = CharSet.Unicode)]
             public static extern uint FormatMessage(FORMAT_MESSAGE dwFlags, IntPtr lpSource, ErrorCode dwMessageId, uint dwLanguageId, StringBuilder lpBuffer, uint nSize, IntPtr args);
 
             /// <summary>
@@ -915,7 +843,7 @@ namespace Cave.Windows
             /// <para>If lpDeviceName is NULL, the function retrieves a list of all existing MS-DOS device names. Each null-terminated string stored into the buffer is the name of an existing MS-DOS device, for example, \Device\HarddiskVolume1 or \Device\Floppy0.</para></param>
             /// <param name="ucchMax">The maximum number of TCHARs that can be stored into the buffer pointed to by lpTargetPath.</param>
             /// <returns>If the function succeeds, the return value is the number of TCHARs stored into the buffer pointed to by lpTargetPath.</returns>
-            [DllImport(@"kernel32.dll", CallingConvention = CallingConvention.Winapi)]
+            [DllImport(@"kernel32.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode)]
             public static extern uint QueryDosDevice(string lpDeviceName, StringBuilder lpTargetPath, int ucchMax);
 
             #endregion
