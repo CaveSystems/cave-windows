@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
 using System.Threading;
-#if !NETSTANDARD20
+#if NET20_OR_GREATER
 using System.Windows.Forms;
 #endif
 
@@ -77,7 +77,7 @@ namespace Cave.Windows
             return bitmap;
         }
 
-#if !NETSTANDARD20
+#if NET20_OR_GREATER
         /// <summary>
         /// captures a bitmap of the currently visible desktop (all screens) within the specified rectangle
         /// </summary>

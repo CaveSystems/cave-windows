@@ -1,0 +1,73 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net20;net35;net40;net45;net46;net47</TargetFrameworks>
+    <!--project-->
+    <RootNamespace>Cave</RootNamespace>
+    <AssemblyOriginatorKeyFile>Cave.Windows.snk</AssemblyOriginatorKeyFile>
+    <Product>CaveSystems Windows Library</Product>
+    <PackageTags>CaveSystems Windows Interop</PackageTags>
+    <Description>CaveSystems Windows Interop Bibliothek. This packages contains interop structures and methods.</Description>
+    <PackageProjectUrl>https://github.com/CaveSystems/cave-windows</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/CaveSystems/cave-windows</RepositoryUrl>
+    <PackageReleaseNotes />
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>TRACE;DEBUG;</DefineConstants>
+  </PropertyGroup>
+    
+  <ItemGroup Condition="'$(TargetFramework)'=='net20' OR '$(TargetFramework)'=='net35'">
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Management" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(TargetFramework)'=='net40' OR '$(TargetFramework)'=='net45' OR '$(TargetFramework)'=='net46' OR '$(TargetFramework)'=='net47'">
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Management" />
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(TargetFramework)'=='netstandard1.3'">
+    <PackageReference Include="System.Diagnostics.Process" Version="4.3.0" />
+    <PackageReference Include="System.Drawing.Primitives" Version="4.3.0" />
+    <PackageReference Include="System.Diagnostics.TraceSource" Version="4.3.0" />
+    <PackageReference Include="System.Management" Version="4.0.0" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(TargetFramework)'=='netstandard2.0'">
+    <PackageReference Include="System.Drawing.Common" Version="4.6.0" />
+    <PackageReference Include="System.Management" Version="4.6.0" />
+    <PackageReference Include="Microsoft.Win32.Registry" Version="4.6.0" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="Cave.Extensions" Version="2.0.12" />
+    <PackageReference Include="Cave.IO" Version="2.0.4" />
+    <PackageReference Include="Cave.Net" Version="2.0.0" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+</Project>
